@@ -1,0 +1,39 @@
+# Secrets & credentials
+*.key
+*.pem
+*.env
+.env*
+secrets/
+tokens/
+
+# Browser/session data
+.browser/
+sessions/
+cookies/
+
+# Logs & caches
+*.log
+cache/
+.cache/
+__pycache__/
+*.pyc
+node_modules/
+
+# Temporary files
+tmp/
+*.tmp
+*.swp
+*~
+
+# OpenClaw internal state
+.openclaw/
+
+# ClawHub metadata
+.clawhub/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# MEMORY.md — personal, main-session only, not for repo
+MEMORY.md
