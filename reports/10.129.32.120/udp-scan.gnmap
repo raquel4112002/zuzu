@@ -1,0 +1,4 @@
+# Nmap 7.98 scan initiated Sat Apr 18 21:09:35 2026 as: /usr/lib/nmap/nmap --privileged -sU --top-ports 50 --min-rate 2000 -oA udp-scan 10.129.32.120
+Host: 10.129.32.120 ()	Status: Up
+Host: 10.129.32.120 ()	Ports: 137/closed/udp//netbios-ns///, 626/closed/udp//serialnumberd///, 1646/closed/udp//radacct///, 1812/closed/udp//radius///	Ignored State: open|filtered (46)
+# Nmap done at Sat Apr 18 21:09:37 2026 -- 1 IP address (1 host up) scanned in 3.28 seconds

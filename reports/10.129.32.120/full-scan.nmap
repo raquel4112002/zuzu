@@ -1,0 +1,33 @@
+# Nmap 7.98 scan initiated Sat Apr 18 21:09:35 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -O -A -p- --min-rate 3000 -oA full-scan 10.129.32.120
+Nmap scan report for 10.129.32.120
+Host is up (0.056s latency).
+Not shown: 65525 closed tcp ports (reset)
+PORT      STATE    SERVICE       VERSION
+22/tcp    open     ssh           OpenSSH 8.9p1 Ubuntu 3ubuntu0.1 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 3e:ea:45:4b:c5:d1:6d:6f:e2:d4:d1:3b:0a:3d:a9:4f (ECDSA)
+|_  256 64:cc:75:de:4a:e6:a5:b4:73:eb:3f:1b:cf:b4:e3:94 (ED25519)
+80/tcp    open     http          nginx
+|_http-title: Did not follow redirect to http://2million.htb/
+2798/tcp  filtered tmesis-upshot
+12963/tcp filtered unknown
+20493/tcp filtered unknown
+23765/tcp filtered unknown
+26391/tcp filtered unknown
+48634/tcp filtered unknown
+54282/tcp filtered unknown
+57967/tcp filtered unknown
+Device type: general purpose
+Running: Linux 5.X
+OS CPE: cpe:/o:linux:linux_kernel:5
+OS details: Linux 5.0 - 5.14
+Network Distance: 2 hops
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE (using port 5900/tcp)
+HOP RTT      ADDRESS
+1   44.15 ms 10.10.14.1
+2   44.47 ms 10.129.32.120
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Sat Apr 18 21:10:19 2026 -- 1 IP address (1 host up) scanned in 45.42 seconds

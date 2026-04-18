@@ -1,0 +1,4 @@
+# Nmap 7.98 scan initiated Sat Apr 18 21:09:35 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -O -A -p- --min-rate 3000 -oA full-scan 10.129.32.120
+Host: 10.129.32.120 ()	Status: Up
+Host: 10.129.32.120 ()	Ports: 22/open/tcp//ssh//OpenSSH 8.9p1 Ubuntu 3ubuntu0.1 (Ubuntu Linux; protocol 2.0)/, 80/open/tcp//http//nginx/, 2798/filtered/tcp//tmesis-upshot///, 12963/filtered/tcp/////, 20493/filtered/tcp/////, 23765/filtered/tcp/////, 26391/filtered/tcp/////, 48634/filtered/tcp/////, 54282/filtered/tcp/////, 57967/filtered/tcp/////	Ignored State: closed (65525)	OS: Linux 5.0 - 5.14	Seq Index: 248	IP ID Seq: All zeros
+# Nmap done at Sat Apr 18 21:10:19 2026 -- 1 IP address (1 host up) scanned in 45.42 seconds
