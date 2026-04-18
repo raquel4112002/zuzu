@@ -6,6 +6,27 @@
 
 ---
 
+## Step -1: Start the Tracker
+
+**ALWAYS start by initializing the attack tracker.** It remembers where you are so you never lose your place.
+
+```bash
+bash scripts/tracker.sh start TARGET [type]
+```
+
+Then at any point:
+- `bash scripts/tracker.sh next` — **What should I do now?**
+- `bash scripts/tracker.sh done <step>` — Mark a step as completed
+- `bash scripts/tracker.sh found 'description'` — Log a finding
+- `bash scripts/tracker.sh creds user pass` — Log credentials
+- `bash scripts/tracker.sh shell reverse TARGET` — Log a shell obtained
+- `bash scripts/tracker.sh status` — See full progress
+
+**If something goes wrong or you get stuck**, read:
+`knowledge-base/troubleshooting.md` — it has solutions for every common problem.
+
+---
+
 ## Step 0: What Do You Have?
 
 **Read this decision and go to the matching section:**
