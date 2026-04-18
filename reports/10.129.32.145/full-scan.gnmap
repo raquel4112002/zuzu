@@ -1,0 +1,4 @@
+# Nmap 7.98 scan initiated Sat Apr 18 21:52:22 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -O -A -p- --min-rate 4000 -oA /home/raquel/.openclaw/workspace/reports/10.129.32.145/full-scan 10.129.32.145
+Host: 10.129.32.145 ()	Status: Up
+Host: 10.129.32.145 ()	Ports: 22/open/tcp//ssh//OpenSSH 9.6p1 Ubuntu 3ubuntu13.15 (Ubuntu Linux; protocol 2.0)/, 80/open/tcp//http//nginx 1.24.0 (Ubuntu)/	Seq Index: 261	IP ID Seq: All zeros
+# Nmap done at Sat Apr 18 21:53:37 2026 -- 1 IP address (1 host up) scanned in 75.14 seconds

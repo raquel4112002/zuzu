@@ -1,0 +1,2 @@
+assets               (Status: 301) [Size: 0] [--> assets/]
+mcp                  (Status: 403) [Size: 34]

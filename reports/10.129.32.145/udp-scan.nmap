@@ -1,0 +1,12 @@
+# Nmap 7.98 scan initiated Sat Apr 18 21:52:22 2026 as: /usr/lib/nmap/nmap --privileged -sU --top-ports 50 --min-rate 2000 -oA /home/raquel/.openclaw/workspace/reports/10.129.32.145/udp-scan 10.129.32.145
+Nmap scan report for 10.129.32.145
+Host is up (0.043s latency).
+Not shown: 45 open|filtered udp ports (no-response)
+PORT      STATE  SERVICE
+67/udp    closed dhcps
+138/udp   closed netbios-dgm
+518/udp   closed ntalk
+3456/udp  closed IISrpc-or-vat
+32768/udp closed omad
+
+# Nmap done at Sat Apr 18 21:52:23 2026 -- 1 IP address (1 host up) scanned in 1.09 seconds
