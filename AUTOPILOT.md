@@ -6,9 +6,44 @@
 
 ---
 
-## Step -1: Start the Tracker
+## 🧠 AUTONOMOUS MODE — The Orchestrator (RECOMMENDED)
 
-**ALWAYS start by initializing the attack tracker.** It remembers where you are so you never lose your place.
+The orchestrator is a state machine that tells you exactly what to do next.
+It tracks everything — ports, creds, shells, flags — so YOU don't have to.
+
+**The loop is dead simple:**
+
+```
+1. bash scripts/orchestrator.sh init TARGET      ← Start
+2. bash scripts/orchestrator.sh think             ← What do I do?
+3. [Run the command it gives you]
+4. bash scripts/orchestrator.sh report "result"   ← What happened
+5. GOTO 2
+```
+
+**If something fails:**
+```bash
+bash scripts/orchestrator.sh error "what went wrong"
+# It suggests a fix. Apply it, then go back to step 2.
+```
+
+**Need help deciding?**
+```bash
+bash scripts/orchestrator.sh decide "which vulnerability to exploit first"
+```
+
+**Check your progress anytime:**
+```bash
+bash scripts/orchestrator.sh status
+```
+
+**Error recovery:** Read `knowledge-base/error-recovery.md`
+
+---
+
+## 📋 MANUAL MODE — The Step Tracker (Alternative)
+
+If you prefer step-by-step with manual control:
 
 ```bash
 bash scripts/tracker.sh start TARGET [type]
