@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-18T10:52:23.344Z",
+  "entries": {
+    "memory:memory/2026-04-17.md:26:44": {
+      "key": "memory:memory/2026-04-17.md:26:44",
+      "path": "memory/2026-04-17.md",
+      "startLine": 26,
+      "endLine": 44,
+      "source": "memory",
+      "snippet": "- 3 commits pushed with full knowledge base ## Still Needed - sudo access to install: subfinder feroxbuster nuclei bloodhound seclists crackmapexec etc. ## Raquel's Operating Rules (committed to AGENTS.md) 1. Use all Kali tools + installable tools. Think before acting. 2. Tavily for search first, stealth-browser as fallback. 3. If API needs key, try loading website directly via stealth-browser. 4. **NEVER** execute internet code without asking. 5. Free to install from official Kali/Debian repos. Ask for anything else. 6. Be proactive — try everything to achieve goals. 7. Pass all rules to subagents. 8. Create detailed attack reports in `reports/` for every target. 9. Git repo = source of t",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.6316960119206193,
+      "maxScore": 0.6316960119206193,
+      "firstRecalledAt": "2026-04-18T10:52:23.344Z",
+      "lastRecalledAt": "2026-04-18T10:52:23.344Z",
+      "queryHashes": [
+        "77d0b72f7027"
+      ],
+      "recallDays": [
+        "2026-04-18"
+      ],
+      "conceptTags": [
+        "agents.md",
+        "stealth-browser",
+        "kali/debian",
+        "commits",
+        "pushed",
+        "full",
+        "knowledge",
+        "base"
+      ]
+    },
+    "memory:memory/2026-04-17.md:1:33": {
+      "key": "memory:memory/2026-04-17.md:1:33",
+      "path": "memory/2026-04-17.md",
+      "startLine": 1,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "# 2026-04-17 — Day One ## What Happened - Zuzu came online. Raquel set up the identity: I'm Zuzu 🐱‍💻, elite hacker AI on Kali Linux. - Installed 9 skills from ClawHub: - cybersec-helper, upstream-recon, network-device-scanner, git-secrets-scanner - docker-essentials, system-info, web-browsing, stealth-browser, tavily-search-pro - 3 were flagged suspicious by VirusTotal (network-device-scanner, git-secrets-scanner, stealth-browser) — force-installed per Raquel's approval ## Knowledge Base & Playbooks Built - MITRE ATT&CK Enterprise tactics → Kali tool mappings - Kali essential tools reference (60+ tools) - OWASP Top 10 testing checklist - AD attack checklist (full path: no creds → D",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.6311640871309603,
+      "maxScore": 0.6311640871309603,
+      "firstRecalledAt": "2026-04-18T10:52:23.344Z",
+      "lastRecalledAt": "2026-04-18T10:52:23.344Z",
+      "queryHashes": [
+        "77d0b72f7027"
+      ],
+      "recallDays": [
+        "2026-04-18"
+      ],
+      "conceptTags": [
+        "network",
+        "cybersec-helper",
+        "upstream-recon",
+        "network-device-scanner",
+        "git-secrets-scanner",
+        "docker-essentials",
+        "system-info",
+        "web-browsing"
+      ]
+    }
+  }
+}

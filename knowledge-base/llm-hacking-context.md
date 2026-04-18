@@ -32,6 +32,15 @@ When given a target, follow this decision tree:
 
 ### 5. Need to map to MITRE ATT&CK?
 → Check `knowledge-base/mitre-attack/enterprise-tactics.md` for tactic→technique→tool mapping.
+→ For deep dives, check `knowledge-base/mitre-attack/techniques/`:
+  - `web-exploitation.md` — Full web app attack methodology (SQLi, XSS, SSRF, LFI, upload, etc.)
+  - `credential-access-ad.md` — AD attacks from zero to Domain Admin
+  - `lateral-movement-deep.md` — All remote execution methods + tunneling/pivoting
+  - `persistence-deep.md` — Linux, Windows, AD, and web persistence techniques
+  - `defense-evasion-deep.md` — AV/EDR bypass, AMSI, LOLBins, log evasion
+  - `reconnaissance-deep.md` — Passive + active recon, OSINT, scanning
+  - `c2-tunneling.md` — C2 frameworks, DNS/ICMP/SSH/chisel/ligolo tunneling
+  - `cloud-attacks.md` — AWS, Azure, GCP attack methodology
 
 ## Attack Methodology (Universal)
 

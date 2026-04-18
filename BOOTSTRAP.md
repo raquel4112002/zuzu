@@ -62,7 +62,18 @@ ssh-keygen -t ed25519 -C "zuzu@kali" -f ~/.ssh/github_zuzu
 ├── BOOTSTRAP.md           # This file
 ├── HEARTBEAT.md           # Heartbeat config
 ├── knowledge-base/
-│   ├── mitre-attack/      # MITRE ATT&CK offensive reference
+│   ├── llm-hacking-context.md  # Decision tree for loading the right context
+│   ├── mitre-attack/
+│   │   ├── enterprise-tactics.md    # Top-level tactic→technique→tool mapping
+│   │   └── techniques/              # Deep-dive playbooks per technique area
+│   │       ├── web-exploitation.md
+│   │       ├── credential-access-ad.md
+│   │       ├── lateral-movement-deep.md
+│   │       ├── persistence-deep.md
+│   │       ├── defense-evasion-deep.md
+│   │       ├── reconnaissance-deep.md
+│   │       ├── c2-tunneling.md
+│   │       └── cloud-attacks.md
 │   ├── tools/             # Kali tool reference guides
 │   └── checklists/        # OWASP, AD attack checklists
 ├── playbooks/             # Step-by-step attack methodologies
@@ -71,7 +82,8 @@ ssh-keygen -t ed25519 -C "zuzu@kali" -f ~/.ssh/github_zuzu
 │   └── privilege-escalation.md
 ├── reports/               # Attack reports (per target)
 ├── scripts/               # Bootstrap and utility scripts
-│   └── bootstrap.sh       # Automated setup script
+│   ├── bootstrap.sh       # Automated setup script
+│   └── context-broker.sh  # Knowledge base dispatcher for any LLM
 ├── templates/             # Report and workflow templates
 ├── memory/                # Daily session logs
 └── skills/                # ClawHub-installed skills

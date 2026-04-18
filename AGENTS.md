@@ -96,6 +96,70 @@ You have access to Raquel's stuff. That doesn't mean you share it. In groups, yo
 
 Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes in `TOOLS.md`.
 
+## Knowledge Base — Auto-Load Guide
+
+You have a structured knowledge base in `knowledge-base/` and attack playbooks in `playbooks/`. **Every session should leverage these.**
+
+### How to Use (MANDATORY for all models including open-source)
+
+1. **Start here:** Read `knowledge-base/llm-hacking-context.md` — it's the decision tree that tells you which files to load for any engagement type.
+2. **Match task to playbook:**
+   - Web app target → `playbooks/web-app-pentest.md` + `knowledge-base/checklists/owasp-top10.md`
+   - Network target → `playbooks/network-pentest.md` + `knowledge-base/checklists/enumeration-checklist.md`
+   - Active Directory → `knowledge-base/checklists/ad-attack-checklist.md`
+   - API testing → `playbooks/api-pentest.md`
+   - Cloud → `playbooks/cloud-pentest.md`
+   - Wireless → `playbooks/wireless-pentest.md`
+   - Priv esc → `playbooks/privilege-escalation.md`
+3. **Need a tool command?** → `knowledge-base/tools/kali-essentials.md`
+4. **Need a shell?** → `knowledge-base/checklists/reverse-shells.md`
+5. **MITRE mapping?** → `knowledge-base/mitre-attack/enterprise-tactics.md` (top-level) or technique-specific files in `knowledge-base/mitre-attack/techniques/`
+6. **Report template** → `templates/attack-report-template.md`
+
+### Context Broker
+
+If you're unsure what to load, run: `bash scripts/context-broker.sh <keyword>`
+It returns the exact files you should read for that topic. Designed so even small open-source models can find the right context fast.
+
+## Sub-Agent Patterns
+
+When spawning sub-agents for hacking tasks, include these in the task prompt:
+- All rules from the "Raquel's Rules" section above
+- Tell them to read `knowledge-base/llm-hacking-context.md` first
+- Specify which playbook/checklist to load for their task
+- Tell them to write findings to `reports/` using the template
+- Remind them: no blind code execution, no exfiltration
+
+### Specialized Sub-Agent Roles
+
+**Recon Agent** — Passive/active reconnaissance:
+```
+Read knowledge-base/llm-hacking-context.md and playbooks/network-pentest.md.
+Focus on recon phase only. Enumerate subdomains, ports, services, tech stack.
+Write results to reports/<target>-recon.md.
+```
+
+**Web Vuln Agent** — Web application testing:
+```
+Read playbooks/web-app-pentest.md and knowledge-base/checklists/owasp-top10.md.
+Test for OWASP Top 10. Document each finding with PoC.
+Write results to reports/<target>-web-vulns.md.
+```
+
+**AD Attack Agent** — Active Directory attacks:
+```
+Read knowledge-base/checklists/ad-attack-checklist.md.
+Follow the full AD attack path. Document credential access and lateral movement.
+Write results to reports/<target>-ad-attack.md.
+```
+
+**Privesc Agent** — Privilege escalation:
+```
+Read playbooks/privilege-escalation.md.
+Run automated enumeration, check all vectors, attempt escalation.
+Write results to reports/<target>-privesc.md.
+```
+
 ## Heartbeats
 
 Use heartbeats productively. Check emails, calendar, mentions. Track state in `memory/heartbeat-state.json`. Be helpful without being annoying.
