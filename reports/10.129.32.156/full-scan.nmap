@@ -1,0 +1,44 @@
+# Nmap 7.98 scan initiated Sun Apr 19 01:23:06 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -O -A -p- --min-rate 3000 -oA /media/sf_Kali_linux/zuzu/openclaw/workspace/reports/10.129.32.156/full-scan 10.129.32.156
+Warning: 10.129.32.156 giving up on port because retransmission cap hit (10).
+Nmap scan report for 10.129.32.156
+Host is up (0.044s latency).
+Not shown: 65517 closed tcp ports (reset)
+PORT      STATE    SERVICE        VERSION
+21/tcp    open     ftp            vsftpd 3.0.3
+22/tcp    open     ssh            OpenSSH 8.2p1 Ubuntu 4ubuntu0.2 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 fa:80:a9:b2:ca:3b:88:69:a4:28:9e:39:0d:27:d5:75 (RSA)
+|   256 96:d8:f8:e3:e8:f7:71:36:c5:49:d5:9d:b6:a4:c9:0c (ECDSA)
+|_  256 3f:d0:ff:91:eb:3b:f6:e1:9f:2e:8d:de:b3:de:b2:18 (ED25519)
+80/tcp    open     http           Gunicorn
+|_http-title: Security Dashboard
+|_http-server-header: gunicorn
+4235/tcp  filtered vrml-multi-use
+4398/tcp  filtered unknown
+7968/tcp  filtered unknown
+10618/tcp filtered unknown
+16349/tcp filtered unknown
+18122/tcp filtered unknown
+23025/tcp filtered unknown
+24725/tcp filtered unknown
+25923/tcp filtered unknown
+25924/tcp filtered unknown
+39364/tcp filtered unknown
+40583/tcp filtered unknown
+41640/tcp filtered unknown
+47494/tcp filtered unknown
+63241/tcp filtered unknown
+Device type: general purpose
+Running: Linux 5.X
+OS CPE: cpe:/o:linux:linux_kernel:5
+OS details: Linux 5.0 - 5.14
+Network Distance: 2 hops
+Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE (using port 1720/tcp)
+HOP RTT      ADDRESS
+1   52.07 ms 10.10.14.1
+2   52.25 ms 10.129.32.156
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Sun Apr 19 01:24:00 2026 -- 1 IP address (1 host up) scanned in 54.28 seconds

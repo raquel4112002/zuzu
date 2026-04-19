@@ -1,0 +1,4 @@
+# Nmap 7.98 scan initiated Sun Apr 19 01:24:08 2026 as: /usr/lib/nmap/nmap --privileged -sU --top-ports 50 --min-rate 2000 -oA /media/sf_Kali_linux/zuzu/openclaw/workspace/reports/10.129.32.156/udp-scan 10.129.32.156
+Host: 10.129.32.156 ()	Status: Up
+Host: 10.129.32.156 ()	Ports: 80/closed/udp//http///, 137/closed/udp//netbios-ns///, 161/closed/udp//snmp///, 514/closed/udp//syslog///, 1645/closed/udp//radius///	Ignored State: open|filtered (45)
+# Nmap done at Sun Apr 19 01:24:10 2026 -- 1 IP address (1 host up) scanned in 1.28 seconds

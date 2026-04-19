@@ -1,0 +1,12 @@
+# Nmap 7.98 scan initiated Sun Apr 19 01:24:08 2026 as: /usr/lib/nmap/nmap --privileged -sU --top-ports 50 --min-rate 2000 -oA /media/sf_Kali_linux/zuzu/openclaw/workspace/reports/10.129.32.156/udp-scan 10.129.32.156
+Nmap scan report for 10.129.32.156
+Host is up (0.046s latency).
+Not shown: 45 open|filtered udp ports (no-response)
+PORT     STATE  SERVICE
+80/udp   closed http
+137/udp  closed netbios-ns
+161/udp  closed snmp
+514/udp  closed syslog
+1645/udp closed radius
+
+# Nmap done at Sun Apr 19 01:24:10 2026 -- 1 IP address (1 host up) scanned in 1.28 seconds

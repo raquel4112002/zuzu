@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.98 scan initiated Sun Apr 19 01:23:06 2026 as: /usr/lib/nmap/nmap -&#45;privileged -sC -sV -O -A -p- -&#45;min-rate 3000 -oA /media/sf_Kali_linux/zuzu/openclaw/workspace/reports/10.129.32.156/full-scan 10.129.32.156 -->
+<nmaprun scanner="nmap" args="/usr/lib/nmap/nmap -&#45;privileged -sC -sV -O -A -p- -&#45;min-rate 3000 -oA /media/sf_Kali_linux/zuzu/openclaw/workspace/reports/10.129.32.156/full-scan 10.129.32.156" start="1776558186" startstr="Sun Apr 19 01:23:06 2026" version="7.98" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="65535" services="1-65535"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="unknown-response" reason_ttl="0"/>
+<address addr="10.129.32.156" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+<host starttime="1776558187" endtime="1776558240"><status state="up" reason="echo-reply" reason_ttl="63"/>
+<address addr="10.129.32.156" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+<ports><extraports state="closed" count="65517">
+<extrareasons reason="reset" count="65517" proto="tcp" ports="1-20,23-79,81-4234,4236-4397,4399-7967,7969-10617,10619-16348,16350-18121,18123-23024,23026-24724,24726-25922,25925-39363,39365-40582,40584-41639,41641-47493,47495-63240,63242-65535"/>
+</extraports>
+<port protocol="tcp" portid="21"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="ftp" product="vsftpd" version="3.0.3" ostype="Unix" method="probed" conf="10"><cpe>cpe:/a:vsftpd:vsftpd:3.0.3</cpe></service></port>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="ssh" product="OpenSSH" version="8.2p1 Ubuntu 4ubuntu0.2" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:8.2p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service><script id="ssh-hostkey" output="&#xa;  3072 fa:80:a9:b2:ca:3b:88:69:a4:28:9e:39:0d:27:d5:75 (RSA)&#xa;  256 96:d8:f8:e3:e8:f7:71:36:c5:49:d5:9d:b6:a4:c9:0c (ECDSA)&#xa;  256 3f:d0:ff:91:eb:3b:f6:e1:9f:2e:8d:de:b3:de:b2:18 (ED25519)"><table>
+<elem key="key">AAAAB3NzaC1yc2EAAAADAQABAAABgQC2vrva1a+HtV5SnbxxtZSs+D8/EXPL2wiqOUG2ngq9zaPlF6cuLX3P2QYvGfh5bcAIVjIqNUmmc1eSHVxtbmNEQjyJdjZOP4i2IfX/RZUA18dWTfEWlNaoVDGBsc8zunvFk3nkyaynnXmlH7n3BLb1nRNyxtouW+q7VzhA6YK3ziOD6tXT7MMnDU7CfG1PfMqdU297OVP35BODg1gZawthjxMi5i5R1g3nyODudFoWaHu9GZ3D/dSQbMAxsly98L1Wr6YJ6M6xfqDurgOAl9i6TZ4zx93c/h1MO+mKH7EobPR/ZWrFGLeVFZbB6jYEflCty8W8Dwr7HOdF1gULr+Mj+BcykLlzPoEhD7YqjRBm8SHdicPP1huq+/3tN7Q/IOf68NNJDdeq6QuGKh1CKqloT/+QZzZcJRubxULUg8YLGsYUHd1umySv4cHHEXRl7vcZJst78eBqnYUtN3MweQr4ga1kQP4YZK5qUQCTPPmrKMa9NPh1sjHSdS8IwiH12V0=</elem>
+<elem key="type">ssh-rsa</elem>
+<elem key="bits">3072</elem>
+<elem key="fingerprint">fa80a9b2ca3b8869a4289e390d27d575</elem>
+</table>
+<table>
+<elem key="key">AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBDqG/RCH23t5Pr9sw6dCqvySMHEjxwCfMzBDypoNIMIa8iKYAe84s/X7vDbA9T/vtGDYzS+fw8I5MAGpX8deeKI=</elem>
+<elem key="type">ecdsa-sha2-nistp256</elem>
+<elem key="bits">256</elem>
+<elem key="fingerprint">96d8f8e3e8f77136c549d59db6a4c90c</elem>
+</table>
+<table>
+<elem key="key">AAAAC3NzaC1lZDI1NTE5AAAAIPbLTiQl+6W0EOi8vS+sByUiZdBsuz0v/7zITtSuaTFH</elem>
+<elem key="type">ssh-ed25519</elem>
+<elem key="bits">256</elem>
+<elem key="fingerprint">3fd0ff91eb3bf6e19f2e8ddeb3deb218</elem>
+</table>
+</script></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="http" product="Gunicorn" method="probed" conf="10"><cpe>cpe:/a:gunicorn:gunicorn</cpe></service><script id="http-title" output="Security Dashboard"><elem key="title">Security Dashboard</elem>
+</script><script id="http-server-header" output="gunicorn"><elem>gunicorn</elem>
+</script></port>
+<port protocol="tcp" portid="4235"><state state="filtered" reason="no-response" reason_ttl="0"/><service name="vrml-multi-use" method="table" conf="3"/></port>
+<port protocol="tcp" portid="4398"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="7968"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="10618"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="16349"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="18122"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="23025"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="24725"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="25923"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="25924"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="39364"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="40583"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="41640"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="47494"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+<port protocol="tcp" portid="63241"><state state="filtered" reason="no-response" reason_ttl="0"/></port>
+</ports>
+<os><portused state="open" proto="tcp" portid="21"/>
+<portused state="closed" proto="tcp" portid="1"/>
+<portused state="closed" proto="udp" portid="41251"/>
+<osmatch name="Linux 5.0 - 5.14" accuracy="100" line="71713">
+<osclass type="general purpose" vendor="Linux" osfamily="Linux" osgen="5.X" accuracy="100"><cpe>cpe:/o:linux:linux_kernel:5</cpe></osclass>
+</osmatch>
+</os>
+<uptime seconds="2323910" lastboot="Mon Mar 23 02:52:10 2026"/>
+<distance value="2"/>
+<tcpsequence index="258" difficulty="Good luck!" values="19DA2736,1C963923,E0DDA4A,5DCF6EA6,4911830E,4C3D8CBA"/>
+<ipidsequence class="All zeros" values="0,0,0,0,0,0"/>
+<tcptssequence class="1000HZ" values="8A83F24D,8A83F2B1,8A83F316,8A83F37B,8A83F3DF,8A83F444"/>
+<trace port="1720" proto="tcp">
+<hop ttl="1" ipaddr="10.10.14.1" rtt="52.07"/>
+<hop ttl="2" ipaddr="10.129.32.156" rtt="52.25"/>
+</trace>
+<times srtt="43754" rttvar="3146" to="100000"/>
+</host>
+<runstats><finished time="1776558240" timestr="Sun Apr 19 01:24:00 2026" summary="Nmap done at Sun Apr 19 01:24:00 2026; 1 IP address (1 host up) scanned in 54.28 seconds" elapsed="54.28" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>
