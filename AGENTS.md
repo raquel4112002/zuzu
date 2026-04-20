@@ -127,10 +127,15 @@ You have a structured knowledge base in `knowledge-base/` and attack playbooks i
    - Cloud → `playbooks/cloud-pentest.md`
    - Wireless → `playbooks/wireless-pentest.md`
    - Priv esc → `playbooks/privilege-escalation.md`
-3. **Need a tool command?** → `knowledge-base/tools/kali-essentials.md`
-4. **Need a shell?** → `knowledge-base/checklists/reverse-shells.md`
-5. **MITRE mapping?** → `knowledge-base/mitre-attack/enterprise-tactics.md` (top-level) or technique-specific files in `knowledge-base/mitre-attack/techniques/`
-6. **Report template** → `templates/attack-report-template.md`
+3. **Found a custom internal tool / support utility / admin binary?** → `playbooks/internal-tool-reversing.md`
+4. **Need to turn BloodHound edges into action?** → `knowledge-base/checklists/bloodhound-edge-to-action.md`
+5. **Need exact AD abuse syntax?** → `knowledge-base/tools/ad-abuse-commands.md`
+6. **Need RBCD steps?** → `playbooks/ad-rbcd-privesc.md`
+7. **Need a tool command?** → `knowledge-base/tools/kali-essentials.md`
+8. **Need a shell?** → `knowledge-base/checklists/reverse-shells.md`
+9. **Stuck or looping?** → `knowledge-base/checklists/stuck-reasoning.md`
+10. **MITRE mapping?** → `knowledge-base/mitre-attack/enterprise-tactics.md` (top-level) or technique-specific files in `knowledge-base/mitre-attack/techniques/`
+11. **Report template** → `templates/attack-report-template.md`
 
 ### Context Broker
 

@@ -16,6 +16,15 @@ When given a target, follow this decision tree:
 - **Wireless** → Load `playbooks/wireless-pentest.md`
 - **Privilege escalation** → Load `playbooks/privilege-escalation.md`
 
+### 1b. Did you find a custom internal tool or support utility?
+- **Custom binary / admin tool / support tool / backup client** → Load `playbooks/internal-tool-reversing.md`
+- If the target is AD and the tool appears to talk to LDAP, SMB, WinRM, or internal APIs, prioritize reversing/triage before brute force
+
+### 1c. Are you working from a BloodHound edge or AD ACL path?
+- **Need to translate BloodHound edges into concrete action** → Load `checklists/bloodhound-edge-to-action.md`
+- **Need exact AD abuse syntax** → Load `tools/ad-abuse-commands.md`
+- **Need to execute RBCD path** → Load `playbooks/ad-rbcd-privesc.md`
+
 ### 2. What phase are you in?
 1. **Recon** → Gather info before touching the target
 2. **Enumeration** → Actively probe the target for services/versions
@@ -91,6 +100,16 @@ When given a target, follow this decision tree:
 → `crackmapexec winrm TARGET -u USER -p PASS`
 → `evil-winrm -i TARGET -u USER -p PASS`
 → `impacket-psexec DOMAIN/USER:PASS@TARGET`
+→ If WinRM auth works but the shell client is unstable, switch to `wmiexec.py` or `psexec.py`
+
+### "BloodHound shows GenericAll / WriteDacl / AddKeyCredentialLink and I don't know what to do"
+→ Load `checklists/bloodhound-edge-to-action.md`
+→ Load `tools/ad-abuse-commands.md`
+→ If the edge lands on a computer object, especially `DC$`, evaluate RBCD first
+
+### "I'm stuck and starting to loop"
+→ Load `checklists/stuck-reasoning.md`
+→ Classify the problem before running more tools at random
 
 ### "I have a shell but I'm low-privileged"
 → Go to `playbooks/privilege-escalation.md`
