@@ -24,6 +24,7 @@ When given a target, follow this decision tree:
 - **Need to translate BloodHound edges into concrete action** → Load `checklists/bloodhound-edge-to-action.md`
 - **Need exact AD abuse syntax** → Load `tools/ad-abuse-commands.md`
 - **Need to execute RBCD path** → Load `playbooks/ad-rbcd-privesc.md`
+- **Already have a domain user and need to convert it into DA or high privilege** → Load `playbooks/ad-foothold-to-domain-admin.md`
 
 ### 2. What phase are you in?
 1. **Recon** → Gather info before touching the target
@@ -110,6 +111,10 @@ When given a target, follow this decision tree:
 ### "I'm stuck and starting to loop"
 → Load `checklists/stuck-reasoning.md`
 → Classify the problem before running more tools at random
+
+### "I already have enough, but I keep enumerating"
+→ Load `checklists/when-to-stop-enumerating.md`
+→ If a short exploit path exists, stop broad enum and execute it
 
 ### "I have a shell but I'm low-privileged"
 → Go to `playbooks/privilege-escalation.md`
