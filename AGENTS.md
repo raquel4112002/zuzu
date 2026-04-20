@@ -132,12 +132,15 @@ You have a structured knowledge base in `knowledge-base/` and attack playbooks i
 5. **Need exact AD abuse syntax?** → `knowledge-base/tools/ad-abuse-commands.md`
 6. **Need RBCD steps?** → `playbooks/ad-rbcd-privesc.md`
 7. **Already have a domain user and need the shortest path upward?** → `playbooks/ad-foothold-to-domain-admin.md`
-8. **Need a tool command?** → `knowledge-base/tools/kali-essentials.md`
-9. **Need a shell?** → `knowledge-base/checklists/reverse-shells.md`
-10. **Stuck or looping?** → `knowledge-base/checklists/stuck-reasoning.md`
-11. **Over-enumerating instead of exploiting?** → `knowledge-base/checklists/when-to-stop-enumerating.md`
-12. **MITRE mapping?** → `knowledge-base/mitre-attack/enterprise-tactics.md` (top-level) or technique-specific files in `knowledge-base/mitre-attack/techniques/`
-13. **Report template** → `templates/attack-report-template.md`
+8. **Need shadow creds or AD CS abuse?** → `playbooks/adcs-and-shadow-creds.md`
+9. **Need a tool command?** → `knowledge-base/tools/kali-essentials.md`
+10. **Need a shell?** → `knowledge-base/checklists/reverse-shells.md`
+11. **Stuck or looping?** → `knowledge-base/checklists/stuck-reasoning.md`
+12. **Over-enumerating instead of exploiting?** → `knowledge-base/checklists/when-to-stop-enumerating.md`
+13. **Path seems right but tooling keeps failing?** → `knowledge-base/checklists/operator-fallbacks.md`
+14. **HTB / lab / CTF target?** → `knowledge-base/checklists/ctf-lab-decision-rules.md`
+15. **MITRE mapping?** → `knowledge-base/mitre-attack/enterprise-tactics.md` (top-level) or technique-specific files in `knowledge-base/mitre-attack/techniques/`
+16. **Report template** → `templates/attack-report-template.md`
 
 ### Context Broker
 

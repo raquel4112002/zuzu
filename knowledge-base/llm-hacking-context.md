@@ -25,6 +25,7 @@ When given a target, follow this decision tree:
 - **Need exact AD abuse syntax** → Load `tools/ad-abuse-commands.md`
 - **Need to execute RBCD path** → Load `playbooks/ad-rbcd-privesc.md`
 - **Already have a domain user and need to convert it into DA or high privilege** → Load `playbooks/ad-foothold-to-domain-admin.md`
+- **Need shadow credentials or AD CS abuse** → Load `playbooks/adcs-and-shadow-creds.md`
 
 ### 2. What phase are you in?
 1. **Recon** → Gather info before touching the target
@@ -115,6 +116,14 @@ When given a target, follow this decision tree:
 ### "I already have enough, but I keep enumerating"
 → Load `checklists/when-to-stop-enumerating.md`
 → If a short exploit path exists, stop broad enum and execute it
+
+### "The path seems right but the tooling keeps failing"
+→ Load `checklists/operator-fallbacks.md`
+→ Separate dead paths from broken tools, DNS/Kerberos issues, and syntax problems
+
+### "This is clearly an HTB box / lab / CTF-style target"
+→ Load `checklists/ctf-lab-decision-rules.md`
+→ Favor the shortest credible exploit chain over exhaustive broad enum
 
 ### "I have a shell but I'm low-privileged"
 → Go to `playbooks/privilege-escalation.md`
