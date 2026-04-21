@@ -18,12 +18,15 @@ cache/
 __pycache__/
 *.pyc
 node_modules/
+.venv/
+.venv-*/
 
 # Temporary files
 tmp/
 *.tmp
 *.swp
 *~
+*.restore
 
 # OpenClaw internal state
 .openclaw/
@@ -37,3 +40,17 @@ Thumbs.db
 
 # MEMORY.md — personal, main-session only, not for repo
 MEMORY.md
+
+# Attack artefacts and downloads that should not be versioned
+*.exe
+*.dll
+*.zip
+*.7z
+*.msi
+*.iso
+*.bin
+*.ccache
+*.kirbi
+reports/**/bloodhound/
+reports/**/*.html
+loot/_unsorted-downloads/
