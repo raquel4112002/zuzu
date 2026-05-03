@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Orchestrator report processor — updates state based on results.
-Upgraded with new phases: vhost_enum, sensitive_files, cve_research, cred_reuse, web_app_admin."""
+Upgraded with new phases: vhost_enum, sensitive_files, cve_research, cred_reuse, web_app_admin.
+
+Fix A (invariants): the orchestrator now refuses to advance into a phase
+whose preconditions are not met (e.g. `postex` without a real shell, or
+`report` without a flag). Weak models often *claim* progress they don't
+have and then loop forever. The invariant guards reject the transition,
+rewind sub_phase, and emit a clear correction so `think` puts the model
+back on the right track instead of pretending state advanced.
+"""
 import json, sys, os, re
 
 state_file = sys.argv[1] if len(sys.argv) > 1 else 'state/orchestrator.json'
@@ -12,13 +20,122 @@ with open(state_file) as f:
 # Ensure new state fields exist
 if 'subdomains' not in s:
     s['subdomains'] = []
+if 'rejected_transitions' not in s:
+    s['rejected_transitions'] = []
 
 target = s['target']
 phase = s['phase']
 sub = s['sub_phase']
 
-# Log the action
+# Log the action (raw, before any guards run)
 s['phase_history'].append({"phase": phase, "sub": sub, "result": result[:500]})
+
+# ═══════════════════════════════════════════════════════════════
+# INVARIANT HELPERS
+# ═══════════════════════════════════════════════════════════════
+
+def _has_real_shell(state):
+    """True iff we have credible evidence of a shell on the target.
+    Not just 'admin web access' or 'logged into a portal'."""
+    shells = state.get('shells') or []
+    if not shells:
+        return False
+    # Reject placeholder/web-only entries
+    junk = ('admin access', 'admin panel', 'dashboard',
+            'authenticated', 'web access', 'portal', 'logged in')
+    for sh in shells:
+        s_text = sh if isinstance(sh, str) else str(sh)
+        s_low = s_text.lower()
+        if any(j in s_low for j in junk) and not any(
+            real in s_low for real in ('uid=', 'reverse shell', 'bind shell',
+                                       'meterpreter', 'ssh shell', 'wmiexec',
+                                       'evil-winrm', 'psexec', 'www-data',
+                                       'bash$', 'sh$', '/bin/bash', '/bin/sh',
+                                       'rce confirmed')):
+            continue
+        return True
+    return False
+
+
+def _has_any_flag(state):
+    flags = state.get('flags') or {}
+    return any(bool(v) for v in flags.values())
+
+
+def _reject(reason, rewind_phase=None, rewind_sub=None):
+    """Log a rejected transition, optionally rewind to a safer state,
+    and print a clear correction. Caller should `return`/short-circuit
+    after calling this so the normal transition logic doesn't run."""
+    s['rejected_transitions'].append({
+        "from_phase": phase,
+        "from_sub": sub,
+        "reason": reason[:300],
+        "raw_result": result[:200],
+    })
+    if rewind_phase is not None:
+        s['phase'] = rewind_phase
+    if rewind_sub is not None:
+        s['sub_phase'] = rewind_sub
+    # Do NOT clear `attempt` — this is a correction, not a success.
+    # Bump it so stuck-reasoning kicks in faster on repeat offenders.
+    s['attempt'] = s.get('attempt', 0) + 1
+    print("╔══════════════════════════════════════════════════════════════╗")
+    print("║  🛑 INVARIANT VIOLATION — transition rejected               ║")
+    print("╚══════════════════════════════════════════════════════════════╝")
+    print()
+    print(f"  Reason: {reason}")
+    print()
+    if rewind_phase is not None or rewind_sub is not None:
+        print(f"  Rewound to: {s['phase']}/{s['sub_phase']}")
+    print("  The orchestrator will not pretend you have access you don't have.")
+    print("  Run: bash scripts/orchestrator.sh think    ← for the corrected next action")
+    with open(state_file, 'w') as f:
+        json.dump(s, f, indent=2)
+    sys.exit(0)
+
+
+# ═══════════════════════════════════════════════════════════════
+# PRE-TRANSITION GUARDS — run BEFORE the phase logic below
+# ═══════════════════════════════════════════════════════════════
+
+# Guard 1: model is in postex but never actually got a shell.
+# This was the #1 failure mode on 2million.htb (7 errors in a row).
+if phase == 'postex' and not _has_real_shell(s):
+    _reject(
+        "You are in 'postex' but the orchestrator has no logged shell. "
+        "Web/portal access is NOT a shell. Get RCE first, then report it "
+        "with a verified shell indicator (uid=, www-data, reverse shell, etc.).",
+        rewind_phase='exploit',
+        rewind_sub='execute',
+    )
+
+# Guard 2: model is trying to write the report but no flag was captured.
+# Allow it only if user explicitly says 'skip' or 'abandon' so an aborted
+# engagement can still produce a partial report.
+if phase == 'report' and not _has_any_flag(s):
+    rl = result.lower()
+    if not any(tok in rl for tok in ('skip', 'abandon', 'partial', 'no flag', 'failed engagement')):
+        _reject(
+            "You are in 'report' phase but no flags were captured. "
+            "Either (a) keep working — go back to postex/privesc, or "
+            "(b) explicitly mark this as a partial/abandoned engagement "
+            "by including 'partial' or 'abandon' in your report message.",
+            rewind_phase='postex',
+            rewind_sub='privesc_enum' if _has_real_shell(s) else 'cred_reuse',
+        )
+
+# Guard 3: model claims a flag without an MD5-shaped string anywhere.
+# Not a hard reject — just refuse to record fake flags. Real HTB flags
+# are 32 hex chars; we let the per-phase logic capture them, but if a
+# model is yelling 'GOT FLAG' without one we strip the false positive.
+if (phase == 'postex' and sub in ('user_flag', 'root_flag')
+        and re.search(r'\b(got|found|captured|flag)\b', result.lower())
+        and not re.search(r'[a-f0-9]{32}', result)):
+    print("⚠️  Claim of flag without 32-hex-char hash. Not recording flag.")
+    print("    If you really have it, paste the raw hash in the report string.")
+    # Don't reject the transition — fall through, but per-phase logic
+    # will see no hash and not record a flag.
+
 
 # ═══════════════════════════════════════════════════════════════
 # RECON PHASE TRANSITIONS
@@ -176,18 +293,38 @@ elif phase == 'exploit' and sub == 'plan':
     print(f"✅ Attack plan set: {result[:100]}")
 
 elif phase == 'exploit' and sub == 'execute':
-    if any(kw in result.lower() for kw in ['shell', 'rce', 'access', 'reverse', 'connect', 'admin access', 'authenticated']):
+    rl = result.lower()
+
+    # Distinguish *real* shell evidence from *web/portal* access.
+    # Real shell needs explicit shell-indicator OR an OS uid signature.
+    real_shell_markers = (
+        'uid=', 'gid=', 'reverse shell', 'bind shell', 'meterpreter',
+        'evil-winrm', 'wmiexec', 'psexec', 'www-data', 'rce confirmed',
+        '/bin/bash', '/bin/sh', 'nt authority', 'system32',
+        'got shell', 'shell on target', 'rev shell', 'callback received',
+    )
+    web_admin_markers = (
+        'admin panel', 'admin dashboard', 'admin access', 'dashboard',
+        'node secret', 'api access', 'api token', 'authenticated session',
+        'logged in', 'admin login successful', 'cms admin',
+    )
+
+    has_real_shell = any(m in rl for m in real_shell_markers)
+    has_web_admin = any(m in rl for m in web_admin_markers)
+
+    if has_real_shell:
         s['shells'].append(result[:200])
-        # NEW: Check if we got admin web access (not a system shell)
-        if any(kw in result.lower() for kw in ['admin access', 'admin panel', 'dashboard', 'authenticated', 'node secret', 'api access']):
-            s['sub_phase'] = 'web_app_admin'
-            print("✅ Admin web access obtained! Moving to web app exploitation")
-        else:
-            s['sub_phase'] = 'stabilize'
-            print("✅ Shell obtained! Moving to stabilization")
+        s['sub_phase'] = 'stabilize'
+        print("✅ Shell obtained (verified marker)! Moving to stabilization")
+    elif has_web_admin:
+        # Web admin access is progress, but it is NOT a system shell.
+        # Stay in exploit phase, escalate via web_app_admin sub-phase.
+        s['findings'].append(f"Web admin access (no shell yet): {result[:200]}")
+        s['sub_phase'] = 'web_app_admin'
+        print("✅ Web admin access obtained — still need RCE for a real shell.")
     else:
         s['findings'].append(f"Exploit result: {result[:200]}")
-        print("⚠️  No shell yet. Try again or report error")
+        print("⚠️  No shell yet. Try a different vector or report error.")
 
 # ─── NEW: WEB APP ADMIN EXPLOITATION ─────────
 elif phase == 'exploit' and sub == 'web_app_admin':
@@ -203,14 +340,22 @@ elif phase == 'exploit' and sub == 'web_app_admin':
     if hashes:
         s['findings'].append(f"Bcrypt hashes found: {len(hashes)}")
     
-    # If we got a shell from web app admin, go to stabilize
-    if any(kw in result.lower() for kw in ['shell', 'terminal', 'bash', 'www-data', 'reverse']):
+    # If we got a shell from web app admin, go to stabilize.
+    # Otherwise STAY in web_app_admin — do not pretend we have shell.
+    rl_admin = result.lower()
+    real_shell_markers_admin = (
+        'uid=', 'gid=', 'reverse shell', 'bind shell', 'meterpreter',
+        'www-data', 'rce confirmed', '/bin/bash', '/bin/sh',
+        'callback received', 'got shell',
+    )
+    if any(m in rl_admin for m in real_shell_markers_admin):
+        s['shells'].append(result[:200])
         s['sub_phase'] = 'stabilize'
         print("✅ Shell from web app admin! Moving to stabilization")
     else:
-        # Move to stabilize to gather system info
-        s['sub_phase'] = 'stabilize'
-        print("✅ Web app admin exploitation processed")
+        # Stay here — keep hunting for RCE inside the admin surface.
+        # `think` will surface concrete RCE-via-admin avenues.
+        print("ℹ️  Web admin processed but no shell yet — keep escalating in web_app_admin.")
 
 elif phase == 'exploit' and sub == 'stabilize':
     s['findings'].append(f"System info: {result[:300]}")

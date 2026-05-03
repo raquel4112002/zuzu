@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """Orchestrator think engine — reads state, outputs next action.
-Upgraded with lessons from 2Million (easy) and Snapped (hard, active) HTB boxes."""
-import json, sys, os
+Upgraded with lessons from 2Million (easy) and Snapped (hard, active) HTB boxes.
+
+Fix B (active stuck-reasoning): when the model loops on the same phase/sub
+or logs repeated errors, this script no longer just prints a static next
+step. It detects the loop, prints the stuck-reasoning worksheet inline,
+shows everything already tried in this sub-phase, surfaces state-aware
+unblocker suggestions, and forces the model to commit 3 hypotheses
+before the next command. Designed for weak open-source LLMs that have
+decent recall but poor planning.
+"""
+import json, sys, os, re
+from collections import Counter
 
 state_file = sys.argv[1] if len(sys.argv) > 1 else 'state/orchestrator.json'
 
@@ -13,6 +23,240 @@ phase = s['phase']
 sub = s['sub_phase']
 attempt = s.get('attempt', 0)
 report_dir = s.get('report_dir', f'reports/{target}')
+phase_history = s.get('phase_history', []) or []
+errors = s.get('errors', []) or []
+rejected = s.get('rejected_transitions', []) or []
+
+# ═══════════════════════════════════════════════════════════════
+# STUCK DETECTION
+# A loop is detected when EITHER:
+#   - attempt counter >= 2 (orch-error.py / invariant guards bumped it), OR
+#   - the last 3+ phase_history entries are all in the same (phase, sub), OR
+#   - the last 2+ errors are in the same (phase, sub).
+# ═══════════════════════════════════════════════════════════════
+
+def _last_n_match(history, n, phase_, sub_):
+    if len(history) < n:
+        return False
+    tail = history[-n:]
+    return all(h.get('phase') == phase_ and h.get('sub') == sub_ for h in tail)
+
+
+def _last_n_errors_match(errs, n, phase_, sub_):
+    if len(errs) < n:
+        return False
+    tail = errs[-n:]
+    return all(e.get('phase') == phase_ and e.get('sub') == sub_ for e in tail)
+
+
+is_stuck = (
+    attempt >= 2
+    or _last_n_match(phase_history, 3, phase, sub)
+    or _last_n_errors_match(errors, 2, phase, sub)
+    or len(rejected) >= 1  # any invariant rejection counts
+)
+
+
+def _state_aware_unblockers(state):
+    """Return a list of concrete suggestions based on what's already in state.
+    Each suggestion is a (label, command) tuple. Quality > quantity — we list
+    only what's actually applicable to the current state."""
+    out = []
+    creds = state.get('credentials') or []
+    services = state.get('services') or {}
+    web_paths = state.get('web_paths') or []
+    ports_tcp = state.get('ports', {}).get('tcp', []) or []
+    findings = ' '.join(state.get('findings') or []).lower()
+    history_text = ' '.join((h.get('result') or '') for h in (state.get('phase_history') or [])).lower()
+    target = state['target']
+
+    # 1) Username harvesting hints — if usernames mentioned anywhere and SSH/SMB open, push cred-spray
+    user_hits = re.findall(r'\b(?:user|username|account)s?\s*[:=]?\s*([a-z][a-z0-9_,\s/]+)', findings + ' ' + history_text)
+    likely_users = []
+    for chunk in user_hits:
+        for tok in re.split(r'[\s,/]+', chunk):
+            tok = tok.strip().lower()
+            if 2 <= len(tok) <= 20 and tok.isalnum():
+                likely_users.append(tok)
+    likely_users = list(dict.fromkeys(likely_users))[:8]  # de-dup, keep first 8
+
+    has_ssh = 22 in ports_tcp
+    has_smb = 445 in ports_tcp or 139 in ports_tcp
+    has_winrm = 5985 in ports_tcp or 5986 in ports_tcp
+    has_ftp = 21 in ports_tcp
+    has_web = any(p in ports_tcp for p in (80, 443, 8080, 8443))
+
+    if likely_users and (has_ssh or has_smb or has_winrm or has_ftp):
+        users_csv = ','.join(likely_users)
+        out.append((
+            f"Cred-spray with discovered usernames ({users_csv}) against open auth services",
+            (
+                f"printf '%s\\n' {' '.join(likely_users)} > /tmp/users.txt && "
+                + (f"hydra -L /tmp/users.txt -P /usr/share/wordlists/rockyou.txt -t 4 -f ssh://{target} ; " if has_ssh else "")
+                + (f"crackmapexec smb {target} -u /tmp/users.txt -p /usr/share/wordlists/rockyou.txt --continue-on-success ; " if has_smb else "")
+                + (f"hydra -L /tmp/users.txt -P /usr/share/wordlists/rockyou.txt -t 4 -f ftp://{target} ; " if has_ftp else "")
+            ).strip().rstrip(';').strip()
+        ))
+
+    # 2) IDOR hint — if any /data/N or /user/N etc. path seen, suggest enumerating IDs
+    idor_paths = [p for p in web_paths if re.search(r'/\w+/\d+', p)]
+    if not idor_paths:
+        for h in state.get('phase_history') or []:
+            r = (h.get('result') or '').lower()
+            for m in re.finditer(r'(/[a-z0-9_-]+/\d+)', r):
+                idor_paths.append(m.group(1))
+    idor_paths = list(dict.fromkeys(idor_paths))[:3]
+    if idor_paths:
+        first = idor_paths[0]
+        base = re.sub(r'/\d+$', '', first)
+        out.append((
+            f"IDOR enumeration on {base}/N (you have {first} but may not have probed other IDs)",
+            f"for i in $(seq 1 50); do echo -n \"$i: \"; curl -s -o /dev/null -w '%{{http_code}} %{{size_download}}\\n' http://{target}{base}/$i; done | sort -k2"
+        ))
+
+    # 3) Hidden parameter discovery — if web exists and command-injection failed, suggest arjun
+    web_endpoints_seen = [p for p in web_paths if not re.search(r'\.(?:js|css|png|jpg|gif|ico)$', p)]
+    if has_web and ('command injection' in history_text or 'no injection' in history_text or 'param' in history_text):
+        for ep in web_endpoints_seen[:2] or ['/']:
+            out.append((
+                f"Hidden parameter discovery on http://{target}{ep} (commands ran but injection point not found — there's probably a hidden param)",
+                f"arjun -u 'http://{target}{ep}' -m GET,POST --stable"
+            ))
+
+    # 4) Cred reuse with known creds across all open auth services
+    if creds:
+        # Pick first plausible user/pass
+        first_cred = next((c for c in creds if isinstance(c, dict) and c.get('user') and c.get('pass') and c.get('user') != 'app_secret'), None)
+        if first_cred:
+            u = first_cred['user']
+            p = first_cred['pass']
+            cmds = []
+            if has_ssh:
+                cmds.append(f"sshpass -p '{p}' ssh -o StrictHostKeyChecking=no {u}@{target} id")
+            if has_smb:
+                cmds.append(f"crackmapexec smb {target} -u '{u}' -p '{p}' --shares")
+            if has_winrm:
+                cmds.append(f"crackmapexec winrm {target} -u '{u}' -p '{p}'")
+            if has_ftp:
+                cmds.append(f"curl -u '{u}:{p}' ftp://{target}/ --list-only")
+            if cmds:
+                out.append((
+                    f"Cred reuse for {u}:{p} across all open auth services (you may have skipped this)",
+                    ' ; '.join(cmds)
+                ))
+
+    # 5) FTP reachable but anon-only failed — try with discovered users
+    if has_ftp and 'anonymous' in (findings + history_text) and likely_users:
+        out.append((
+            "FTP login with discovered usernames + common passwords (anon failed but named users may exist)",
+            f"hydra -L /tmp/users.txt -P /usr/share/seclists/Passwords/Common-Credentials/10-million-password-list-top-1000.txt -f ftp://{target}"
+        ))
+
+    # 6) Web app shows real system data but no injection — the data itself is leaking creds/info
+    if has_web and any(kw in (findings + history_text) for kw in ('netstat', 'ifconfig', 'ip a', 'shows real', 'system data')):
+        out.append((
+            "The web app is leaking system data — mine it. Snapshot every endpoint output and grep for creds/paths/users",
+            f"for ep in {' '.join(set(web_endpoints_seen + ['/']))}; do echo \"=== $ep ===\"; curl -s 'http://{target}'\"$ep\"; done | tee /tmp/web-dump.txt | grep -iE 'pass|user|key|token|home|uid='"
+        ))
+
+    # 7) UDP hint — if recon was TCP-only and we're stuck, push UDP/SNMP
+    if not state.get('ports', {}).get('udp'):
+        out.append((
+            "UDP services were never enumerated. SNMP (161) and TFTP (69) often leak everything in CTFs.",
+            f"sudo nmap -sU --top-ports 50 --min-rate 2000 {target}"
+        ))
+
+    return out
+
+
+def _format_tried(state):
+    """Return a deduplicated bullet list of what has already been tried in the
+    current sub-phase, so the model doesn't repeat itself."""
+    same_sub = [h for h in (state.get('phase_history') or [])
+                if h.get('phase') == state['phase'] and h.get('sub') == state['sub_phase']]
+    seen, lines = set(), []
+    for h in same_sub:
+        r = (h.get('result') or '').strip()
+        if not r:
+            continue
+        # Collapse near-duplicates by their first 80 chars
+        key = r[:80].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(r[:200])
+    return lines
+
+
+def _print_stuck_worksheet(state):
+    print("╔══════════════════════════════════════════════════════════════╗")
+    print("║  🚧 STUCK — LOOP DETECTED. Don't repeat what failed.        ║")
+    print("╚══════════════════════════════════════════════════════════════╝")
+    print()
+    print(f"  Phase: {state['phase']}/{state['sub_phase']}    attempt={state.get('attempt', 0)}")
+    print(f"  Target: {state['target']}")
+    print()
+
+    # 1. What you already tried (from history) — do not repeat
+    tried = _format_tried(state)
+    if tried:
+        print("  ⚠️  Already attempted in this sub-phase — DO NOT repeat:")
+        for t in tried[-6:]:
+            print(f"     • {t}")
+        print()
+
+    # 2. Last 2 errors verbatim
+    errs = state.get('errors') or []
+    if errs:
+        print("  Recent errors:")
+        for e in errs[-2:]:
+            print(f"     ✖ {e.get('error', '')[:200]}")
+        print()
+
+    # 3. Invariant rejections (if any)
+    if state.get('rejected_transitions'):
+        print("  🚫 Invariant rejections recorded — you tried to advance without proof:")
+        for r in state['rejected_transitions'][-2:]:
+            print(f"     ✖ {r.get('reason', '')[:200]}")
+        print()
+
+    # 4. State-aware unblockers (the actually useful part)
+    unblockers = _state_aware_unblockers(state)
+    if unblockers:
+        print("  🎯 STATE-AWARE UNBLOCKERS — try one of these (highest leverage first):")
+        for i, (label, cmd) in enumerate(unblockers[:6], 1):
+            print(f"     {i}. {label}")
+            print(f"        $ {cmd}")
+        print()
+
+    # 5. Force a reasoning step
+    print("  🧩 BEFORE the next command, fill in this 6-line worksheet in your reply:")
+    print("     ACCESS:        (what access do I currently have? unauthenticated/web user/shell/root)")
+    print("     CONTROL:       (what can I write/influence? files, params, configs)")
+    print("     READ:          (what can I read? endpoints, files, env)")
+    print("     PROBLEM CLASS: (cred / authz / RCE / privboundary / tooling / network)")
+    print("     HYPOTHESES (3, each with its own test command):")
+    print("       H1: ... → test:")
+    print("       H2: ... → test:")
+    print("       H3: ... → test:")
+    print("     NEXT CMD:      (pick ONE — the highest-leverage hypothesis)")
+    print()
+    print("  📖 Full worksheet (longer): knowledge-base/checklists/stuck-reasoning.md")
+    print("  📖 Tooling fallback:          knowledge-base/checklists/operator-fallbacks.md")
+    print()
+    print("  After you pick a hypothesis, run its test, then:")
+    print("     bash scripts/orchestrator.sh report \"H<n>: <result>\"")
+    print("  If a hypothesis dies cleanly, that's progress — report it as failed and move on.")
+    print()
+    print("  —— (Below is the original next-action; treat it as a fallback only) ——")
+    print()
+
+
+if is_stuck:
+    _print_stuck_worksheet(s)
+    # Persist that we showed the worksheet so we don't spam it every call.
+    # We don't reset attempt here — only a successful `report` does that.
+    # Fall through and ALSO print the normal next-action below as fallback.
 
 print("╔══════════════════════════════════════════════════════════════╗")
 print("║  🧠 NEXT ACTION                                             ║")
