@@ -171,6 +171,23 @@ nikto/nuclei=180s, sqlmap=300s, anything else=120s.
 **Rule: if hydra/brute exhausts its budget, do NOT just rerun with a bigger
 wordlist. Try a different vector.** See the silentium/WingData failures.
 
+### `scripts/walkthrough-search.sh` — hints (NOT solutions) for public boxes
+
+For retired HTB / public VulnHub boxes, fetch high-level technique fingerprints
+from public writeups WITHOUT the specific commands or flags:
+
+```bash
+bash scripts/walkthrough-search.sh openadmin
+bash scripts/walkthrough-search.sh airtouch
+```
+
+Output is a markdown report at `/tmp/walkthrough-<name>.md` with detected
+techniques (e.g. "sudo misconfiguration", "SSH key cracking", "GTFOBins
+editor escape") and tools used. Specific paths, hashes, and commands are
+redacted. Use as a last-resort hint when truly stuck.
+
+**Rule: only use this on retired/public boxes. Active HTB boxes are off-limits.**
+
 ### `scripts/source-dive.sh` — grep open-source apps for unauth surface
 
 When the target runs an open-source web app (Flowise, Jenkins, n8n, GitLab, etc.)
@@ -189,6 +206,35 @@ SQL/NoSQL injection sinks, and recent security commits (= CVE breadcrumbs).
 
 **Rule: this is mandatory before brute-forcing any open-source web app.**
 The auth bypass is in the source code, not the running app.
+
+## Knowledge Base — Creative Pivots
+
+When the obvious path fails: **`knowledge-base/creative-pivots.md`**.
+
+It's a curated catalog of "if X failed, try Y" mappings organized by failure
+class: auth wall, brute-force not working, SPA dir-bust, web access pre-shell,
+shell pre-priv-esc, lost access, CTF-style stuck, and meta-recovery. Built
+from real engagement post-mortems (silentium, AirTouch, WingData, 2million).
+
+Don't paste it whole into context. Use it as a lookup table when stuck:
+`bash scripts/context-broker.sh creative` returns the relevant pointers.
+
+## Stuck-Gate (mandatory)
+
+The orchestrator detects loops automatically (attempt>=2, repeated phase
+history, repeated errors, or any invariant rejection). When stuck, the next
+`report` must contain a worksheet with at least 3 hypotheses or it will be
+**REJECTED**:
+
+```
+H1: <one-line hypothesis> -> test: <command or check>
+H2: <one-line hypothesis> -> test: <command or check>
+H3: <one-line hypothesis> -> test: <command or check>
+```
+
+This forces models to *think* instead of blindly rerunning the same failed
+approach. Bypass with `BYPASS_STUCK_GATE` only when you genuinely have new
+evidence; the bypass is logged for audit.
 
 ## Sub-Agent Patterns
 

@@ -70,15 +70,62 @@ def _state_aware_unblockers(state):
     history_text = ' '.join((h.get('result') or '') for h in (state.get('phase_history') or [])).lower()
     target = state['target']
 
-    # 1) Username harvesting hints — if usernames mentioned anywhere and SSH/SMB open, push cred-spray
-    user_hits = re.findall(r'\b(?:user|username|account)s?\s*[:=]?\s*([a-z][a-z0-9_,\s/]+)', findings + ' ' + history_text)
-    likely_users = []
-    for chunk in user_hits:
-        for tok in re.split(r'[\s,/]+', chunk):
+    # 1) Username harvesting — read from STRUCTURED entities (Fix #3),
+    #    not free-text prose. Falls back to legacy parsing only if entities
+    #    are absent (e.g. older state file from before Fix #3 shipped).
+    entities = state.get('entities') or {}
+    likely_users = list(entities.get('usernames') or [])
+    if not likely_users:
+        # Legacy fallback for older state files. Fixed (Fix #7, 2026-05-07):
+        # the previous regex matched ANY word after "users:" / "with" / etc.,
+        # so prose like "found, with, admin, marcus, elena" was extracted as
+        # 5 "usernames". Now we (a) only match the LDAP/CSV-style patterns
+        # that real recon output produces, and (b) blacklist common English
+        # words and recon vocabulary that look like usernames but aren't.
+        STOPWORDS = {
+            'found', 'with', 'and', 'or', 'the', 'for', 'has', 'have', 'are',
+            'is', 'was', 'were', 'this', 'that', 'these', 'those', 'from',
+            'into', 'onto', 'than', 'then', 'team', 'page', 'site', 'name',
+            'names', 'list', 'lists', 'admin', 'admins', 'user', 'users',
+            'account', 'accounts', 'login', 'logins', 'member', 'members',
+            'role', 'roles', 'group', 'groups', 'system', 'systems', 'host',
+            'hosts', 'web', 'app', 'apps', 'api', 'apis', 'service', 'services',
+            'port', 'ports', 'protocol', 'http', 'https', 'tcp', 'udp', 'ssh',
+            'smb', 'ftp', 'ldap', 'kerberos', 'staff', 'public', 'private',
+            'enabled', 'disabled', 'open', 'closed', 'active', 'inactive',
+            'managing', 'director', 'cro', 'cto', 'cfo', 'ceo', 'head',
+            'engineer', 'developer', 'manager', 'financial', 'systems',
+            'operations', 'security', 'sales', 'marketing', 'finance',
+            'product', 'design', 'support', 'consultant', 'analyst',
+            'officer', 'lead', 'senior', 'junior', 'principal', 'staff',
+            'team', 'group', 'unit', 'division',
+        }
+        # Pattern A: structured "username: foo" / "sAMAccountName: bar"
+        # Pattern B: "users found: a, b, c" — only the part right after the
+        #            colon, and only if every token is a single lowercase word.
+        candidate_chunks = []
+        for m in re.finditer(
+            r'\b(?:username|sam[a-z]*name|userprincipalname|account ?name|login ?name)\s*[:=]\s*([a-z][a-z0-9._-]{1,30})',
+            findings + ' ' + history_text):
+            candidate_chunks.append(m.group(1))
+        # First name extraction from team-page style mentions: "Marcus Thorne",
+        # "Elena Rossi" → marcus, elena. Two consecutive capitalized words.
+        for m in re.finditer(r'\b([A-Z][a-z]{2,15})\s+[A-Z][a-z]{2,15}\b',
+                             ' '.join(state.get('findings') or []) + ' ' +
+                             ' '.join((h.get('result') or '') for h in (state.get('phase_history') or []))):
+            candidate_chunks.append(m.group(1).lower())
+        for tok in candidate_chunks:
             tok = tok.strip().lower()
-            if 2 <= len(tok) <= 20 and tok.isalnum():
+            if not tok or tok in STOPWORDS:
+                continue
+            if 2 <= len(tok) <= 20 and re.match(r'^[a-z][a-z0-9._-]*$', tok):
                 likely_users.append(tok)
-    likely_users = list(dict.fromkeys(likely_users))[:8]  # de-dup, keep first 8
+        likely_users = list(dict.fromkeys(likely_users))[:8]
+
+    # Always cap displayed list — a 12-username spray is fine to *run* but
+    # ugly to print. Show top 8, but write all of them to the spray file.
+    likely_users = likely_users[:24]
+    display_users = likely_users[:8]
 
     has_ssh = 22 in ports_tcp
     has_smb = 445 in ports_tcp or 139 in ports_tcp
@@ -87,7 +134,7 @@ def _state_aware_unblockers(state):
     has_web = any(p in ports_tcp for p in (80, 443, 8080, 8443))
 
     if likely_users and (has_ssh or has_smb or has_winrm or has_ftp):
-        users_csv = ','.join(likely_users)
+        users_csv = ','.join(display_users) + ('…' if len(likely_users) > len(display_users) else '')
         out.append((
             f"Cred-spray with discovered usernames ({users_csv}) against open auth services",
             (
@@ -96,6 +143,48 @@ def _state_aware_unblockers(state):
                 + (f"crackmapexec smb {target} -u /tmp/users.txt -p /usr/share/wordlists/rockyou.txt --continue-on-success ; " if has_smb else "")
                 + (f"hydra -L /tmp/users.txt -P /usr/share/wordlists/rockyou.txt -t 4 -f ftp://{target} ; " if has_ftp else "")
             ).strip().rstrip(';').strip()
+        ))
+
+    # 1b) PUBLIC POC EXISTS but model bailed because of version mismatch
+    #     (the silentium failure mode). If we have a CVE recorded AND the
+    #     prose mentions "version" + "<" or "requires creds" or "doesn't
+    #     match", suggest firing the payload anyway.
+    cves = entities.get('cves') or []
+    bailout_phrases = ('but target is', 'exact version', "doesn't apply",
+                       'doesn\u2019t apply', 'not vulnerable', 'patched',
+                       'version mismatch', 'is for ', 'is for v')
+    bailed_on_version = any(p in history_text for p in bailout_phrases)
+    if cves and bailed_on_version:
+        cve_label = cves[0]
+        out.append((
+            f"FIRE THE PUBLIC POC ANYWAY ({cve_label}). Version strings lie. "
+            "Patches get reverted. Forks reintroduce bugs. Cost of one extra "
+            "HTTP request is zero; cost of skipping a working exploit is the engagement.",
+            f"# 1) Find the PoC: searchsploit -m <id> ; or grep the exploit/CVE on github\n"
+            f"        # 2) Strip the script's version-string check (delete the `if version != ...` lines)\n"
+            f"        # 3) Run the payload portion against {target} and inspect the response body\n"
+            f"        # 4) If it requires auth, also try it WITHOUT auth and with header tricks:\n"
+            f"        #    -H 'X-Forwarded-For: 127.0.0.1', -H 'x-request-from: internal',\n"
+            f"        #    case mutation on the path (/API/v1/...), URL-encoded slashes"
+        ))
+
+    # 1c) AUTH WALL HIT REPEATEDLY — push auth-bypass research, source-dive
+    auth_wall_hits = sum(1 for p in ('unauthorized access', 'invalid or missing token',
+                                     'auth required', '401', 'requires auth',
+                                     'requires credentials', 'need creds')
+                         if p in history_text)
+    if has_web and auth_wall_hits >= 2:
+        out.append((
+            "Auth wall keeps blocking you. Stop trying credentials and "
+            "INVESTIGATE the auth middleware itself (open-source apps almost "
+            "always have a whitelist).",
+            "# 1) If the app is open-source (Flowise/Gitea/Jenkins/etc.):\n"
+            "        #    git clone <repo> && grep -RIn 'whitelist\\|skipAuth\\|publicPaths\\|isPublic'\n"
+            "        # 2) Enumerate every API endpoint visible in the JS bundle:\n"
+            f"        curl -s http://{target}/assets/index*.js | grep -oE '/api/v[0-9]+/[a-zA-Z0-9_/-]+' | sort -u\n"
+            "        # 3) For each endpoint, test unauth GET, POST {}, OPTIONS\n"
+            "        # 4) Try parser tricks: case mutation, double slashes,\n"
+            "        #    URL-encoded slashes (%2f), trailing dot, /../ relative paths"
         ))
 
     # 2) IDOR hint — if any /data/N or /user/N etc. path seen, suggest enumerating IDs
@@ -243,6 +332,11 @@ def _print_stuck_worksheet(state):
     print()
     print("  📖 Full worksheet (longer): knowledge-base/checklists/stuck-reasoning.md")
     print("  📖 Tooling fallback:          knowledge-base/checklists/operator-fallbacks.md")
+    print("  📖 Creative pivots library:   knowledge-base/creative-pivots.md")
+    print("  📖 (HTB retired box?)         bash scripts/walkthrough-search.sh <name>")
+    print("")
+    print("  🚧 The next `report` MUST contain at least 3 hypothesis lines")
+    print("     (H1:/H2:/H3:) or it will be REJECTED by the stuck-gate.")
     print()
     print("  After you pick a hypothesis, run its test, then:")
     print("     bash scripts/orchestrator.sh report \"H<n>: <result>\"")
@@ -457,7 +551,16 @@ elif phase == 'web_enum':
         print("  CHECK GITHUB for PoC exploits:")
         print(f"    python3 skills/tavily-search-pro/lib/tavily_search.py search \"APP_NAME CVE POC github exploit\" -n 5")
         print()
+        print("  ╔═══════════════════════════════════════════════════════════╗")
+        print("  ║  🔑 GOLDEN RULE: VERSION STRINGS LIE                       ║")
+        print("  ╚═══════════════════════════════════════════════════════════╝")
+        print("  If a public PoC exists for the product on the box, RECORD THE CVE")
+        print("  even when the version-string range disagrees. Fix releases get")
+        print("  reverted, forks reintroduce bugs, version checks are often wrong.")
+        print("  You will fire the payload anyway in the exploit phase.")
+        print()
         print("  REPORT: List all CVEs found with severity and whether PoC exists")
+        print("          (do NOT pre-judge applicability — record the CVE either way)")
 
     elif sub == 'vuln_scan':
         print(f"  📍 Phase: WEB ENUM → Automated Vulnerability Scanning")
@@ -475,6 +578,21 @@ elif phase == 'exploit':
     if sub == 'plan':
         print(f"  📍 Phase: EXPLOIT → Plan Attack")
         print()
+        # Surface STRUCTURED state first — weak models can't re-parse prose
+        ents = s.get('entities') or {}
+        if ents.get('tech') or ents.get('cves') or ents.get('usernames') or ents.get('emails'):
+            print("  STRUCTURED STATE (use this directly, don't re-parse prose):")
+            if ents.get('tech'):
+                print(f"    🔧 Tech detected:    {', '.join(ents['tech'])}")
+            if ents.get('cves'):
+                print(f"    🆔 CVEs to try:      {', '.join(ents['cves'])}")
+            if ents.get('usernames'):
+                show = ents['usernames'][:10]
+                tail = '…' if len(ents['usernames']) > 10 else ''
+                print(f"    👤 Usernames found:  {', '.join(show)}{tail}")
+            if ents.get('emails'):
+                print(f"    ✉️  Emails found:     {', '.join(ents['emails'][:5])}")
+            print()
         print("  FINDINGS SO FAR:")
         for f in s.get('findings', []):
             print(f"    📝 {f}")
@@ -482,7 +600,7 @@ elif phase == 'exploit':
         print("  DECIDE: Which vulnerability to exploit first?")
         print("  Priority order (easiest → hardest):")
         print("    1. Unauthenticated endpoints (backup download, info leak)")
-        print("    2. Known CVE with public PoC")
+        print("    2. Known CVE with public PoC — FIRE IT EVEN IF VERSION SAYS PATCHED")
         print("    3. Command injection → direct RCE")
         print("    4. SQL injection → database access → creds")
         print("    5. File upload → webshell")
@@ -490,6 +608,14 @@ elif phase == 'exploit':
         print("    7. Authentication bypass → admin access")
         print("    8. Brute force (LAST RESORT — slow and noisy)")
         print()
+        # If we have CVEs in entities, surface the version-skepticism rule loudly
+        if ents.get('cves'):
+            print("  🔑 PUBLIC POC EXISTS (" + ', '.join(ents['cves']) + "):")
+            print("     Run the payload BEFORE concluding 'patched/not applicable'.")
+            print("     Strip any version-string check inside the PoC and just fire it.")
+            print("     Inspect the raw response — a 200/500 with side effects beats")
+            print("     a 404/501 every time.")
+            print()
         print("  READ: knowledge-base/mitre-attack/techniques/web-exploitation.md")
         print('  REPORT: bash scripts/orchestrator.sh report "attacking via [method] in [endpoint]"')
 

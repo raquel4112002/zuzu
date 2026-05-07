@@ -156,9 +156,22 @@ case "$TOPIC" in
     echo "  → playbooks/archetypes/ad-windows-target.md"
     echo "  → knowledge-base/checklists/ad-attack-checklist.md"
     ;;
+  *pivot*|*creative*|*stuck*|*unstuck*|*alternative*|*bypass*)
+    echo "  🎯 MATCH: creative pivots / stuck-reasoning"
+    echo "  → knowledge-base/creative-pivots.md"
+    echo "  → knowledge-base/checklists/stuck-reasoning.md"
+    echo "  → knowledge-base/checklists/operator-fallbacks.md"
+    ;;
+  *walkthrough*|*writeup*|*hint*|*spoiler*|*htb*walkthrough*)
+    echo "  🎯 MATCH: looking for hints on a public box"
+    echo "  💡 Run: bash scripts/walkthrough-search.sh <target-name>"
+    echo "          Returns high-level technique fingerprints (NO spoilers)."
+    echo "  → knowledge-base/creative-pivots.md (when stuck)"
+    ;;
   *all*|*everything*)
     echo "  → knowledge-base/llm-hacking-context.md"
     echo "  → playbooks/archetypes/README.md"
+    echo "  → knowledge-base/creative-pivots.md"
     echo "  → knowledge-base/mitre-attack/enterprise-tactics.md"
     echo "  → knowledge-base/tools/kali-essentials.md"
     echo "  → knowledge-base/checklists/ (all files)"
@@ -188,6 +201,9 @@ echo "                                            Default 90s for hydra/medusa/n
 echo "                                            Default 60s for gobuster/ffuf/feroxbuster"
 echo "  → scripts/source-dive.sh <repo> [tag]    Grep open-source code for unauth"
 echo "                                            routes, auth bypasses, hardcoded creds"
+echo "  → scripts/walkthrough-search.sh <target>  HINTS only (no spoilers) for retired"
+echo "                                            HTB / public boxes. Strips specific"
+echo "                                            commands, keeps techniques."
 echo ""
 echo "⚠️  RULE: If a target uses an open-source web app and seems to require auth,"
 echo "          run source-dive.sh BEFORE attempting brute force. The auth bypass"
