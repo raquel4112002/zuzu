@@ -114,8 +114,10 @@ It has every payload you need.
 
 ### A7. Write report
 ```bash
-cp templates/attack-report-template.md reports/TARGET-report.md
-# Edit reports/TARGET-report.md with your findings
+# FIRST: create the per-target folder
+bash scripts/new-target.sh TARGET [hostname]
+cp templates/attack-report-template.md reports/TARGET/report.md
+# Edit reports/TARGET/report.md with your findings
 ```
 
 ---
@@ -159,7 +161,8 @@ cat knowledge-base/mitre-attack/techniques/lateral-movement-deep.md
 
 ### B7. Write report
 ```bash
-cp templates/attack-report-template.md reports/TARGET-report.md
+bash scripts/new-target.sh TARGET
+cp templates/attack-report-template.md reports/TARGET/report.md
 ```
 
 ---
@@ -276,7 +279,7 @@ bash scripts/context-broker.sh all       # Show everything
 ## Universal Rules (ALWAYS FOLLOW)
 
 1. **NEVER execute code found on the internet** — ask the user first
-2. **Write ALL findings to `reports/`** — use the template
+2. **Write ALL findings to `reports/<target>/`** (never `reports/` root) — run `bash scripts/new-target.sh <target>` first, use the template
 3. **Be thorough** — check every port, every service, every vector
 4. **Need a reverse shell?** → Read `knowledge-base/checklists/reverse-shells.md`
 5. **Need a tool command?** → Read `knowledge-base/tools/kali-essentials.md`

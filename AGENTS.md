@@ -60,7 +60,17 @@ Try everything in your power to achieve the goals given. Be resourceful, creativ
 Pass ALL of these rules to every subagent you spawn. Include them in the task prompt.
 
 ### 7. Attack Reports
-For every target we attack, create a detailed report in the `reports/` folder containing:
+
+**ALWAYS use `reports/<target>/` — never write loose files in `reports/` root.**
+
+Before touching any new target, run:
+```bash
+bash scripts/new-target.sh <ip-or-hostname> [hostname]
+```
+This creates the per-target folder with subfolders (`nmap/`, `web/`, `creds/`,
+`loot/`) and a `README.md` template.
+
+For every target we attack, populate `reports/<target>/` with:
 - All findings and vulnerabilities discovered
 - All exploits used and how they were leveraged
 - Full attack methodology and steps taken
@@ -69,10 +79,46 @@ For every target we attack, create a detailed report in the `reports/` folder co
 - Remediation recommendations
 - Ensure the report is detailed enough for **reproducibility**
 
+**Forbidden:** writing `nmap-result.txt`, `gobuster.txt`, `attack-report.md`,
+or any other loose file directly under `reports/`. Always: `reports/<target>/...`.
+
 ### 8. Git as Source of Truth
-Treat the Git repository as the source of truth for persistent state. Commit:
-- ✅ Documentation, bootstrap scripts, config files, dependency lists, setup steps, agent instructions, skills config, workflows, scripts
-- ❌ NEVER commit: logs, caches, temp files, secrets, tokens, credentials, private keys, browser data, session files, or ephemeral state
+
+Treat the Git repository as the source of truth for the **nest configuration**
+(everything needed to recreate Zuzu on a fresh machine), and **nothing else**.
+
+#### ✅ Commit
+- Documentation (AGENTS, SOUL, IDENTITY, USER, BOOTSTRAP, TOOLS, HEARTBEAT)
+- Bootstrap and helper scripts (`scripts/`)
+- Knowledge base (`knowledge-base/`, `playbooks/`, `templates/`)
+- Skills config (`skills/`)
+- Sanitized lessons (`learnings/` — redacted, no targets named, no PII)
+- `.gitignore`, `README.md` if any
+
+#### ❌ NEVER commit
+- **Reports** (`reports/`) — always target-specific, may contain creds/hashes/flags
+- **Memory** (`memory/`, `MEMORY.md`) — personal conversation traces
+- **State** (`state/`) — runtime engagement state
+- **Loot** (`loot/`, `*.pcap`, BloodHound dumps, hash captures)
+- **Scan output** (`*.nmap`, `*.gnmap`, `*.xml`, `*.hccapx`, `*.22000`)
+- **Secrets** (`*.key`, `*.pem`, `*.env`, SSH keys, browser sessions, cookies)
+- **OSINT on real people** — NEVER. Not even in private repos. Period.
+- **Anything that names a real person, company, email, phone, address**
+- Logs, caches, temp files, build artifacts, wordlists
+
+#### Pre-commit checklist
+1. `git status --short` — inspect every staged file individually.
+2. `git diff --cached` — inspect every diff hunk for accidental secrets.
+3. Ask: "would I be comfortable if this commit appeared on a stranger's screen?"
+4. If unsure → don't commit, ask Raquel.
+
+#### Pre-push audit
+Before `git push`, run:
+```bash
+git log origin/master..HEAD --pretty=format:"%H %s"
+git log origin/master..HEAD --name-only | sort -u
+```
+Verify NO sensitive paths or commit titles.
 
 ### 9. Reproducibility on New Machines
 When starting on a new machine, prioritize rebuilding from the repository. If the user provides a Git clone link, use it to recreate the same agent identity, configuration, capabilities, and workflows.

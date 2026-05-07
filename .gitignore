@@ -1,56 +1,142 @@
-# Secrets & credentials
+# ═══════════════════════════════════════════════════════════════════
+# Zuzu nest .gitignore
+#
+# Philosophy: this repo should contain everything needed to RECREATE the
+# nest on a fresh machine, and NOTHING else. No targets, no loot, no
+# personal OSINT, no pcaps, no memory, no creds, no session state.
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Secrets & credentials ──────────────────────────────────────────
 *.key
 *.pem
+*.crt
+*.pfx
+*.p12
 *.env
 .env*
 secrets/
 tokens/
+credentials/
+.netrc
+.aws/
+.ssh/
+authorized_keys
+known_hosts
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+*.gpg
+*.asc
 
-# Browser/session data
+# ── Browser/session/cookie data ────────────────────────────────────
 .browser/
 sessions/
 cookies/
+cookies.txt
+*.session
+*-session.json
 
-# Logs & caches
+# ── Logs, caches, temp ─────────────────────────────────────────────
 *.log
 cache/
 .cache/
 __pycache__/
 *.pyc
+*.pyo
 node_modules/
 .venv/
 .venv-*/
-
-# Temporary files
 tmp/
 *.tmp
 *.swp
 *~
 *.restore
+*.bak
+*.orig
 
-# OpenClaw internal state
-.openclaw/
-
-# ClawHub metadata
-.clawhub/
-
-# OS files
+# ── OS / IDE noise ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+*.iml
 
-# MEMORY.md — personal, main-session only, not for repo
+# ── OpenClaw / ClawHub internal state ──────────────────────────────
+.openclaw/
+.clawhub/
+
+# ── Memory: personal session log + conversation traces ─────────────
+# These belong on the local machine only. Each Zuzu instance builds
+# its own memory; cloning the repo should NOT inherit conversations.
 MEMORY.md
+memory/
+memory/.dreams/
 
-# Attack artefacts and downloads that should not be versioned
+# ── Orchestrator runtime state ─────────────────────────────────────
+# state/ holds live engagement state (which target, which phase, what's
+# already been tried). It's runtime data, not config.
+state/
+
+# ── Reports — local only ──────────────────────────────────────────
+# Every report is target-specific and may contain creds, hashes, flags,
+# pcaps, screenshots, scan output, BloodHound dumps, etc. It is NEVER
+# safe to commit a report unredacted. Keep them local.
+#
+# Exception: templates/ (committed) and any *redacted* lessons we
+# explicitly move to learnings/ live outside reports/.
+reports/
+loot/
+
+# ── Network captures & binary artefacts ────────────────────────────
+*.pcap
+*.pcapng
+*.cap
+*.gnmap
+*.nmap
+*.xml
+*.hccapx
+*.hccap
+*.22000
+
+# Windows / .NET / Kerberos artefacts
 *.exe
 *.dll
-*.zip
-*.7z
 *.msi
 *.iso
 *.bin
 *.ccache
 *.kirbi
-reports/**/bloodhound/
-reports/**/*.html
-loot/_unsorted-downloads/
+*.ntds
+*.dit
+
+# Common loot extensions
+*.zip
+*.7z
+*.tar.gz
+*.tgz
+*.rar
+
+# Common BloodHound output
+*_users.json
+*_groups.json
+*_computers.json
+*_domains.json
+*_gpos.json
+*_ous.json
+*_containers.json
+bloodhound_*
+
+# ── Skill runtime output ───────────────────────────────────────────
+skills/**/result.txt
+skills/**/output.txt
+skills/**/scratch/
+
+# ── Wordlists (large, available from system) ──────────────────────
+rockyou*.txt
+top1000*.txt
+*-passwords.txt
+*-users.txt
+
+# ── Git/dev junk ──────────────────────────────────────────────────
+.git/maintenance.lock
