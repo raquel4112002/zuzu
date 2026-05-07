@@ -165,10 +165,14 @@ You have a structured knowledge base in `knowledge-base/` and attack playbooks i
 ### How to Use (MANDATORY for all models including open-source)
 
 1. **Start here:** Read `knowledge-base/llm-hacking-context.md` — it's the decision tree that tells you which files to load for any engagement type.
-2. **Match target type to an archetype FIRST** (faster, more concrete than the generic playbooks):
+2. **Check if a RUNBOOK matches your target FIRST** (copy-paste, end-to-end):
+   - `playbooks/runbooks/README.md` — index of validated end-to-end runbooks
+   - Examples: `wing-ftp-rooted.md` (Wing FTP 7.4.3 → root), `linux-foothold-to-root.md` (any Linux shell → root)
+   - Runbooks are LITERAL copy-paste with expected outputs at every step. If your target matches, use the runbook.
+3. **If no runbook matches, match to an archetype** (faster than generic playbooks):
    - `playbooks/archetypes/README.md` — picker for AI/LLM, FTP, CMS, DevOps, AD, SNMP, API, generic webapp
    - Each archetype has fast checks, deep checks, known CVEs, and the common pitfalls model-by-model.
-3. **Match task to playbook (fallback if no archetype fits):**
+4. **Match task to playbook (fallback if no archetype fits):**
    - Web app target → `playbooks/web-app-pentest.md` + `knowledge-base/checklists/owasp-top10.md`
    - Network target → `playbooks/network-pentest.md` + `knowledge-base/checklists/enumeration-checklist.md`
    - Active Directory → `knowledge-base/checklists/ad-attack-checklist.md`

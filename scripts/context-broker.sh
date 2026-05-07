@@ -75,10 +75,18 @@ case "$TOPIC" in
   *wireless*|*wifi*|*wpa*|*aircrack*|*bluetooth*)
     echo "  → playbooks/wireless-pentest.md"
     ;;
+  *hashcat*|*hash*mode*|*algorithm*|*sha256*|*md5*|*salt*)
+    echo "  🔑 MATCH: hash cracking / mode discovery"
+    echo "  → knowledge-base/creative-pivots.md (Section E0)"
+    echo "  💡 KEY RULE: don't trial-and-error hashcat modes. Find the salt"
+    echo "            in the app config FIRST, then read the source"
+    echo "            (login function) to know the algorithm. Then run hashcat."
+    ;;
   *cred*|*password*|*hash*|*brute*|*crack*|*mimikatz*|*dump*)
     echo "  → knowledge-base/mitre-attack/enterprise-tactics.md (TA0006)"
     echo "  → knowledge-base/mitre-attack/techniques/credential-access-ad.md (if exists)"
     echo "  → knowledge-base/tools/kali-essentials.md (credential section)"
+    echo "  → knowledge-base/creative-pivots.md (Section E0 for hash cracking specifically)"
     ;;
   *lateral*|*pivot*|*movement*|*psexec*|*wmi*|*smb*)
     echo "  → knowledge-base/mitre-attack/enterprise-tactics.md (TA0008)"
@@ -124,6 +132,9 @@ case "$TOPIC" in
     echo "  🎯 ARCHETYPE MATCH: Custom FTP / file server"
     echo "  → playbooks/archetypes/custom-ftp-or-file-server.md"
     echo "  → playbooks/network-pentest.md"
+    if echo "$TOPIC" | grep -qE "wing"; then
+      echo "  🚀 RUNBOOK (copy-paste, end-to-end): playbooks/runbooks/wing-ftp-rooted.md"
+    fi
     ;;
   *cms*|*wordpress*|*joomla*|*drupal*|*ghost*|*plugin*)
     echo "  🎯 ARCHETYPE MATCH: CMS / plugin target"
@@ -161,6 +172,18 @@ case "$TOPIC" in
     echo "  → knowledge-base/creative-pivots.md"
     echo "  → knowledge-base/checklists/stuck-reasoning.md"
     echo "  → knowledge-base/checklists/operator-fallbacks.md"
+    ;;
+  *runbook*|*end*to*end*|*step*by*step*|*recipe*|*copy*paste*)
+    echo "  🚀 MATCH: runbooks (copy-paste, end-to-end)"
+    echo "  → playbooks/runbooks/README.md           (index)"
+    echo "  → playbooks/runbooks/wing-ftp-rooted.md   (Wing FTP → root)"
+    echo "  → playbooks/runbooks/linux-foothold-to-root.md"
+    ;;
+
+  *cve*|*exploit*db*|*poc*|*known*exploit*)
+    echo "  🔥 MATCH: known CVE / exploit lookup"
+    echo "  → knowledge-base/cve-to-exploit-cache.md   (curated, validated)"
+    echo "  💡 Run: searchsploit <product> <version>     for exploitdb search"
     ;;
   *walkthrough*|*writeup*|*hint*|*spoiler*|*htb*walkthrough*)
     echo "  🎯 MATCH: looking for hints on a public box"

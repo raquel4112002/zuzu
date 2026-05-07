@@ -7,8 +7,22 @@
 
 When given a target, follow this decision tree:
 
+### -1. Check for a RUNBOOK that matches your exact target (highest priority)
+**A runbook is a copy-paste, end-to-end script** with every command literal
+and every expected output documented. If your target matches one, use it
+literally instead of reasoning from scratch.
+
+- `playbooks/runbooks/wing-ftp-rooted.md` — Wing FTP Server 7.4.3 → root
+  (CVE-2025-47812 + CVE-2025-4517). Validated on wingdata.htb.
+- `playbooks/runbooks/linux-foothold-to-root.md` — ANY Linux shell → root,
+  via the 7 most common privesc paths (sudo, SUID, capabilities, cron,
+  writable paths, kernel exploits, container escape).
+- `playbooks/runbooks/README.md` — full index, including how to author new ones.
+
+If you finished an engagement, **add a runbook for the next operator**.
+
 ### 0. Match the target to an ARCHETYPE first (most specific, most useful)
-Before the generic playbooks, check `playbooks/archetypes/README.md`. If your
+If no runbook matches, check `playbooks/archetypes/README.md`. If your
 target matches one of the archetypes, that file is faster, more concrete, and
 lists the specific CVEs and pitfalls for that target type.
 
@@ -25,6 +39,18 @@ Archetypes:
 ### 0b. MANDATORY helper scripts
 - `scripts/timebox.sh` — wrap **every** brute-force/dir-bust command. Default 90s budget for hydra.
 - `scripts/source-dive.sh` — if the target runs an open-source app and seems to require auth, RUN THIS before brute force. The auth bypass is in the source.
+- `scripts/walkthrough-search.sh` — for retired/public boxes, gives technique fingerprints (NO spoilers).
+- `scripts/new-target.sh` — ALWAYS run first to create `reports/<target>/` structure.
+
+### 0c. Hash cracking shortcut
+If you have a hash and rockyou exhausts on default mode → you have the
+WRONG MODE, not a weak password. Read `knowledge-base/creative-pivots.md`
+Section E0 for the algorithm → mode lookup table. Find the salt in app
+config FIRST, then read the login source code to confirm the algorithm.
+
+### 0d. Known CVEs we've used
+`knowledge-base/cve-to-exploit-cache.md` lists CVEs we've successfully
+exploited, with exploit-db IDs, local paths, and patches needed.
 
 ### 1. What type of engagement? (fallback if no archetype fits)
 - **Web application** → Load `playbooks/web-app-pentest.md` + `checklists/owasp-top10.md`

@@ -210,6 +210,79 @@ Add fields to POST bodies that aren't in the form:
 
 ---
 
+## E0. "I have a hash, hashcat says no candidates"
+
+The single biggest hashcat failure mode is **wrong mode**, not weak wordlist.
+If rockyou exhausts on what looks like SHA256 / MD5, **the algorithm is
+salted** and you picked the wrong mode.
+
+### Step 1 — Look at the hash length
+| Length (chars) | Algorithm | Default mode |
+|---|---|---|
+| 32 | MD5 | 0 |
+| 40 | SHA1 | 100 |
+| 56 | SHA224 | 1300 |
+| 64 | SHA256 | 1400 |
+| 96 | SHA384 | 10800 |
+| 128 | SHA512 | 1700 |
+| 60 (`$2a$`/`$2b$`) | bcrypt | 3200 |
+| starts with `$1$` | MD5-crypt | 500 |
+| starts with `$5$` | SHA256-crypt | 7400 |
+| starts with `$6$` | SHA512-crypt | 1800 |
+| starts with `$y$` | yescrypt | 30000 |
+| starts with `$argon2id$` | Argon2id | 19500 |
+
+### Step 2 — Find the salt FIRST (not by trying)
+```bash
+# Always look at the app's config or source for:
+grep -RIniE "(salt|peppe?r)" /opt/<app>/    # config files
+grep -RInE "\.salt|salt_string|getSalt" /opt/<app>/  # source code
+```
+App-specific salt placements:
+- **Wing FTP:** `/opt/wftpserver/Data/<domain>/settings.xml` → `<SaltingString>`
+- **WordPress:** `wp-config.php` → `AUTH_SALT` etc. (but actual user pwd uses phpass)
+- **Drupal:** `settings.php` → `hash_salt`
+- **Generic Spring app:** `application.properties` / `.yml` → `spring.security.password.salt`
+
+### Step 3 — SHA256-with-salt mode reference (don't trial-and-error)
+| Algorithm | Hashcat mode |
+|---|---|
+| `sha256(pass)` | 1400 |
+| `sha256(pass.salt)` | **1410** ← most common (Wing FTP, many Java apps) |
+| `sha256(salt.pass)` | 1420 |
+| `sha256(pass.salt.pass)` | 1430 |
+| `sha256(salt.pass.salt)` | 1411 |
+| `sha256(unicode-le(pass).salt)` | 1450 |
+| `sha256(salt.unicode-le(pass))` | 1460 |
+| `md5(pass.salt)` | 10 |
+| `md5(salt.pass)` | 20 |
+| `sha1(pass.salt)` | 110 |
+| `sha1(salt.pass)` | 120 |
+
+### Step 4 — Confirm with a one-liner before brute force
+```bash
+# If you know one user's password (e.g. anonymous = empty), verify the algorithm:
+python3 -c "
+import hashlib
+for combo in ['WingFTP', 'pwWingFTP', 'WingFTPpw']:
+    print(combo, hashlib.sha256(combo.encode()).hexdigest())
+"
+# Match against a known hash. The combo that matches reveals the order.
+```
+
+### Step 5 — If hashcat-mode lookup fails, READ THE SOURCE
+The app's login function tells you exactly what it does. For Wing FTP it
+was literally:
+```lua
+temppass = user.password..salt_string
+password_md5 = sha2(temppass)
+```
+2 lines that saved 30 minutes of mode-trial-and-error. **Always grep the
+login/auth source for `hash`, `sha`, `md5`, `salt`, `digest` before
+starting hashcat.**
+
+---
+
 ## E. "Got shell but cannot escalate"
 
 ### E1 — Don't just run linpeas and stop
