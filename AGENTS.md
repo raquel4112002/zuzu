@@ -119,7 +119,10 @@ You have a structured knowledge base in `knowledge-base/` and attack playbooks i
 ### How to Use (MANDATORY for all models including open-source)
 
 1. **Start here:** Read `knowledge-base/llm-hacking-context.md` — it's the decision tree that tells you which files to load for any engagement type.
-2. **Match task to playbook:**
+2. **Match target type to an archetype FIRST** (faster, more concrete than the generic playbooks):
+   - `playbooks/archetypes/README.md` — picker for AI/LLM, FTP, CMS, DevOps, AD, SNMP, API, generic webapp
+   - Each archetype has fast checks, deep checks, known CVEs, and the common pitfalls model-by-model.
+3. **Match task to playbook (fallback if no archetype fits):**
    - Web app target → `playbooks/web-app-pentest.md` + `knowledge-base/checklists/owasp-top10.md`
    - Network target → `playbooks/network-pentest.md` + `knowledge-base/checklists/enumeration-checklist.md`
    - Active Directory → `knowledge-base/checklists/ad-attack-checklist.md`
@@ -146,6 +149,46 @@ You have a structured knowledge base in `knowledge-base/` and attack playbooks i
 
 If you're unsure what to load, run: `bash scripts/context-broker.sh <keyword>`
 It returns the exact files you should read for that topic. Designed so even small open-source models can find the right context fast.
+
+## Mandatory Helper Scripts
+
+These exist to fix the most common failure modes the nest has seen. Use them.
+
+### `scripts/timebox.sh` — hard time cap on long commands
+
+Wraps any command with a time budget; kills it cleanly when the budget is up.
+Use it for **every** brute-force / dir-bust / scan command.
+
+```bash
+bash scripts/timebox.sh 90 hydra -L users.txt -P pw.txt ssh://target
+bash scripts/timebox.sh 60 gobuster dir -u http://target -w wordlist.txt
+bash scripts/timebox.sh hydra ...     # auto-picks 90s for hydra
+```
+
+Default budgets baked in: hydra/medusa/ncrack=90s, gobuster/ffuf/feroxbuster=60s,
+nikto/nuclei=180s, sqlmap=300s, anything else=120s.
+
+**Rule: if hydra/brute exhausts its budget, do NOT just rerun with a bigger
+wordlist. Try a different vector.** See the silentium/WingData failures.
+
+### `scripts/source-dive.sh` — grep open-source apps for unauth surface
+
+When the target runs an open-source web app (Flowise, Jenkins, n8n, GitLab, etc.)
+and the live app seems to require auth, **run this BEFORE giving up**:
+
+```bash
+bash scripts/source-dive.sh FlowiseAI/Flowise v3.0.5
+bash scripts/source-dive.sh jenkinsci/jenkins
+# Output is a markdown report at /tmp/source-dive-XXXX/source-dive.md
+```
+
+It clones the repo (shallow) and greps for: skipAuth/requireAuth=false routes,
+all HTTP route definitions, auth middleware bypass headers, hardcoded creds,
+default config files, dangerous sinks (eval/exec), file upload patterns,
+SQL/NoSQL injection sinks, and recent security commits (= CVE breadcrumbs).
+
+**Rule: this is mandatory before brute-forcing any open-source web app.**
+The auth bypass is in the source code, not the running app.
 
 ## Sub-Agent Patterns
 

@@ -7,7 +7,26 @@
 
 When given a target, follow this decision tree:
 
-### 1. What type of engagement?
+### 0. Match the target to an ARCHETYPE first (most specific, most useful)
+Before the generic playbooks, check `playbooks/archetypes/README.md`. If your
+target matches one of the archetypes, that file is faster, more concrete, and
+lists the specific CVEs and pitfalls for that target type.
+
+Archetypes:
+- AI/LLM platform (Flowise, n8n, AnythingLLM, Dify, etc.) → `playbooks/archetypes/ai-orchestration.md`
+- Custom FTP / file server (Wing FTP, ProFTPD, etc.) → `playbooks/archetypes/custom-ftp-or-file-server.md`
+- Generic webapp with login (no obvious framework) → `playbooks/archetypes/webapp-with-login.md`
+- CMS + plugins (WordPress, Joomla, Drupal) → `playbooks/archetypes/cms-and-plugins.md`
+- AD/Windows target → `playbooks/archetypes/ad-windows-target.md`
+- Linux host with SNMP → `playbooks/archetypes/linux-snmp-host.md`
+- DevOps tool (Jenkins, GitLab, Jira, etc.) → `playbooks/archetypes/devops-tools.md`
+- API-only target (Swagger, GraphQL, JSON) → `playbooks/archetypes/api-only-target.md`
+
+### 0b. MANDATORY helper scripts
+- `scripts/timebox.sh` — wrap **every** brute-force/dir-bust command. Default 90s budget for hydra.
+- `scripts/source-dive.sh` — if the target runs an open-source app and seems to require auth, RUN THIS before brute force. The auth bypass is in the source.
+
+### 1. What type of engagement? (fallback if no archetype fits)
 - **Web application** → Load `playbooks/web-app-pentest.md` + `checklists/owasp-top10.md`
 - **Network/infrastructure** → Load `playbooks/network-pentest.md` + `checklists/enumeration-checklist.md`
 - **Active Directory** → Load `checklists/ad-attack-checklist.md`

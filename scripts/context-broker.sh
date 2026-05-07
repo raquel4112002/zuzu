@@ -19,6 +19,9 @@ if [ -z "$TOPIC" ]; then
   echo "Topics: web, api, network, ad, privesc, recon, cloud, wireless,"
   echo "        credential, lateral, c2, shell, enumeration, mitre, report, all"
   echo ""
+  echo "Archetype topics: ai, llm, flowise, ftp, wingftp, cms, wordpress,"
+  echo "                  jenkins, gitlab, devops, snmp, jwt, swagger, graphql"
+  echo ""
   echo "Returns the files you should read for that topic."
   exit 1
 fi
@@ -111,8 +114,51 @@ case "$TOPIC" in
     echo "  → knowledge-base/mitre-attack/enterprise-tactics.md (TA0005)"
     echo "  → knowledge-base/mitre-attack/techniques/defense-evasion-deep.md (if exists)"
     ;;
+  *ai*|*llm*|*flowise*|*langchain*|*n8n*|*anythingllm*|*dify*|*orchestrat*)
+    echo "  🎯 ARCHETYPE MATCH: AI orchestration platform"
+    echo "  → playbooks/archetypes/ai-orchestration.md"
+    echo "  → playbooks/web-app-pentest.md"
+    echo "  💡 Run: bash scripts/source-dive.sh <repo> <version> BEFORE giving up on auth"
+    ;;
+  *ftp*|*wingftp*|*proftpd*|*vsftpd*|*filezilla*|*file*server*)
+    echo "  🎯 ARCHETYPE MATCH: Custom FTP / file server"
+    echo "  → playbooks/archetypes/custom-ftp-or-file-server.md"
+    echo "  → playbooks/network-pentest.md"
+    ;;
+  *cms*|*wordpress*|*joomla*|*drupal*|*ghost*|*plugin*)
+    echo "  🎯 ARCHETYPE MATCH: CMS / plugin target"
+    echo "  → playbooks/archetypes/cms-and-plugins.md"
+    echo "  → playbooks/web-app-pentest.md"
+    ;;
+  *jenkins*|*gitlab*|*gitea*|*jira*|*confluence*|*teamcity*|*argocd*|*argo*|*devops*|*ci*cd*)
+    echo "  🎯 ARCHETYPE MATCH: DevOps / CI tool"
+    echo "  → playbooks/archetypes/devops-tools.md"
+    echo "  → playbooks/web-app-pentest.md"
+    ;;
+  *snmp*|*udp*161*)
+    echo "  🎯 ARCHETYPE MATCH: SNMP-enabled host"
+    echo "  → playbooks/archetypes/linux-snmp-host.md"
+    echo "  → playbooks/network-pentest.md"
+    ;;
+  *swagger*|*openapi*|*graphql*|*api*only*|*jwt*)
+    echo "  🎯 ARCHETYPE MATCH: API-only target"
+    echo "  → playbooks/archetypes/api-only-target.md"
+    echo "  → playbooks/api-pentest.md"
+    ;;
+  *login*|*webapp*|*generic*web*)
+    echo "  🎯 ARCHETYPE MATCH: Generic web app with login"
+    echo "  → playbooks/archetypes/webapp-with-login.md"
+    echo "  → playbooks/web-app-pentest.md"
+    echo "  💡 Source-dive BEFORE brute force: bash scripts/source-dive.sh <repo>"
+    ;;
+  *windows*|*smb*share*|*winrm*|*kerberos*|*samba*|*ntlm*)
+    echo "  🎯 ARCHETYPE MATCH: AD / Windows target"
+    echo "  → playbooks/archetypes/ad-windows-target.md"
+    echo "  → knowledge-base/checklists/ad-attack-checklist.md"
+    ;;
   *all*|*everything*)
     echo "  → knowledge-base/llm-hacking-context.md"
+    echo "  → playbooks/archetypes/README.md"
     echo "  → knowledge-base/mitre-attack/enterprise-tactics.md"
     echo "  → knowledge-base/tools/kali-essentials.md"
     echo "  → knowledge-base/checklists/ (all files)"
@@ -135,5 +181,19 @@ esac
 echo ""
 echo "📖 RULES (always apply):"
 echo "  → AGENTS.md"
+echo ""
+echo "🛠  HELPER SCRIPTS:"
+echo "  → scripts/timebox.sh <secs> <cmd...>     Hard time cap on long commands"
+echo "                                            Default 90s for hydra/medusa/ncrack"
+echo "                                            Default 60s for gobuster/ffuf/feroxbuster"
+echo "  → scripts/source-dive.sh <repo> [tag]    Grep open-source code for unauth"
+echo "                                            routes, auth bypasses, hardcoded creds"
+echo ""
+echo "⚠️  RULE: If a target uses an open-source web app and seems to require auth,"
+echo "          run source-dive.sh BEFORE attempting brute force. The auth bypass"
+echo "          is in the source code, not the running app."
+echo ""
+echo "⚠️  RULE: All brute force / dir-bust commands MUST be wrapped in timebox.sh."
+echo "          Hydra running >90s without a hit means stop and try a different vector."
 echo ""
 echo "=== END ==="
