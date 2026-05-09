@@ -183,6 +183,54 @@ captures, scan output, one-off files that aren't part of the nest config
 go under `reports/<target>/exploits/` or `reports/_archive/`. A clean
 root keeps every model's context clean.
 
+### R15. Out-of-Band human gates are facts, not hypotheses
+
+Some barriers cannot be defeated by code or recon — they require a
+human action **outside** the technical attack surface. Examples:
+
+- CAPTCHA on a page with no API/audio variant, no token reuse, no
+  source-side bypass
+- Email / SMS / TOTP verification we don't control the inbox / phone for
+- Manual identity verification, payment, KYC, age gates
+- Out-of-scope external service (real Google OAuth, real Stripe, real
+  domain we don't own)
+- Physical access requirement (hardware key, on-prem console)
+
+**The rule:**
+
+1. Treat the gate as a normal hypothesis target first. Generate **≥ 3
+   independent technical bypasses** and falsify them with evidence:
+   - For a CAPTCHA: OCR / preprocess+OCR, audio version, token replay,
+     weak generator (predictable seed / reused MD5), source-dive the
+     CAPTCHA gem, alternate endpoint that skips it, parameter pollution.
+   - For email/SMS verification: catch-all on a domain we own, header
+     injection in the verification request, predictable token, race
+     condition on the verify endpoint, alternate signup path.
+   - For OAuth: open-redirect → code theft, alternate local-account
+     login, dev/staging copy without OAuth.
+2. After **3 falsified bypasses**, the gate is a fact. STOP attacking
+   the gate itself. Do not loop, do not raise the budget, do not try a
+   4th variant of the same idea.
+3. Run `bash scripts/request-human.sh` — it writes
+   `reports/<target>/HUMAN-HELP-REQUESTED.md`, marks the engagement as
+   `awaiting_human` in `state/orchestrator.json`, and emits a clean
+   handoff message with: what gate, what we tried, what we need, what
+   we'll do once we have it.
+4. While `awaiting_human`, `stop-gate.sh` exits 0 with reason
+   `awaiting_human` — this is a **pause**, not "done". Work resumes
+   the moment the human pastes credentials / token / artefact.
+
+Looping on a CAPTCHA / verification wall when the bank is empty of
+technical bypasses is the same anti-pattern as throwing rockyou.txt at
+the wrong hash mode: it costs hours and produces nothing. A 30-second
+message to Raquel is the highest-EV move.
+
+**Anti-rule:** R15 does **not** authorise bailing the moment a CAPTCHA
+appears. CTF-style CAPTCHAs are frequently solvable (predictable image,
+weak token, source-dive reveals the gem). The 3-falsified-bypass
+requirement is mandatory — without it, this rule is a quitter's
+shortcut. R3 (hypotheses are first-class) still applies.
+
 ---
 
 ## 4. Quick command reference (commit these to muscle memory)
@@ -214,6 +262,13 @@ bash scripts/orchestrator.sh think
 
 # Done? Deterministic check:
 bash scripts/stop-gate.sh <target> --why
+
+# Hit a human-only gate after ≥3 falsified bypasses? Hand off:
+bash scripts/request-human.sh \
+  --target <target> --gate captcha|email|sms|oauth|kyc|other \
+  --tried "<comma-sep list of falsified bypass attempts>" \
+  --need  "<exactly what you need from Raquel>" \
+  --resume-with "<the next command/H you'll fire when she responds>"
 ```
 
 ---

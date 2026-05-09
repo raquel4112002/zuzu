@@ -113,6 +113,13 @@ A pentest is done when **one** is true:
    falsified by evidence, and the blocker is written to `notes.md` +
    `ENGAGEMENT.md` with what you tried, what evidence ruled it out, and
    what you'd try next given more time / different access.
+4. **Awaiting human (Out-of-Band gate).** A barrier requires a human
+   action *outside* the technical attack surface (CAPTCHA, email/SMS
+   verification, MFA, KYC, payment, OAuth on a real external IdP),
+   AND you have falsified **≥ 3 independent technical bypasses** with
+   evidence. Use `bash scripts/request-human.sh` to hand off. This is
+   a **pause**, not "done" — work resumes when the human responds.
+   See AGENTS.md R15 for the full protocol and the bypass checklist.
 
 `stop-gate.sh` is the deterministic check. Run it before declaring done:
 
@@ -121,7 +128,8 @@ bash scripts/stop-gate.sh <target> --why
 ```
 
 "It's getting hard" is not a stop condition. "I think we covered the
-basics" is not a stop condition.
+basics" is not a stop condition. "There's a CAPTCHA" is not — by itself —
+a stop condition either; it's a trigger for the R15 bypass checklist.
 
 ---
 
@@ -151,6 +159,11 @@ The fixed procedure on novel targets:
 6. After **3 hypotheses falsified in an hour**, run
    `bash scripts/think.sh --pivot` and rewrite the target model. Your
    model is wrong, not your luck.
+7. If the 3 falsified hypotheses were all attempts to bypass a single
+   human-only barrier (CAPTCHA, email verification, MFA, KYC, OAuth on
+   an external real IdP), the barrier is an **Out-of-Band human gate**.
+   Run `bash scripts/request-human.sh` per AGENTS.md R15 — do not
+   generate a 4th variant of the same bypass.
 
 Random new tool ≠ progress. Hypothesis → falsifier → evidence → chain
 is the only loop that works.
@@ -233,6 +246,8 @@ between turns and across operators.
 | `notes.md` / `target-model.md` not updated since last tool call | You're not thinking, you're guessing. |
 | Following a runbook step you don't understand | Stop. Re-derive from the model. The runbook is wrong for *this* target. |
 | Declaring "done" without `stop-gate.sh` exiting 0 | You're not done. |
+| Looping on a CAPTCHA / email-verify / MFA wall, generating yet another OCR variant | After 3 falsified technical bypasses, run `request-human.sh`. The gate is a fact, not a hypothesis. (AGENTS.md R15) |
+| Bailing to `request-human.sh` the moment a CAPTCHA appears, with 0 bypasses tried | R15 requires **3 falsified bypasses** first. Source-dive the gem, try OCR, try replay, try alt endpoints. |
 
 ---
 

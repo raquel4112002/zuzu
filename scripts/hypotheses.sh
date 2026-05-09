@@ -260,24 +260,86 @@ PY
     HID="${1:-}"
     VERDICT="${2:-}"
     NOTE="${3:-}"
+    shift 3 2>/dev/null || true
+    EVIDENCE=""
+    WAIVE_EVIDENCE="no"
+    WAIVE_EVIDENCE_REASON=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --evidence)         EVIDENCE="$2"; shift 2;;
+        --waive-evidence)   WAIVE_EVIDENCE="yes"; WAIVE_EVIDENCE_REASON="$2"; shift 2;;
+        *) shift;;
+      esac
+    done
     if [[ -z "$HID" || -z "$VERDICT" ]]; then
-      echo "Usage: hypotheses.sh result <id> confirmed|falsified|inconclusive \"<note>\""
+      echo "Usage: hypotheses.sh result <id> confirmed|falsified|inconclusive \"<note>\" [--evidence <path>]"
       exit 2
     fi
-    py - "$BANK" "$HID" "$VERDICT" "$NOTE" <<PY
+    py - "$BANK" "$HID" "$VERDICT" "$NOTE" "$EVIDENCE" "$WAIVE_EVIDENCE" "$WAIVE_EVIDENCE_REASON" "$WS" <<PY
 $PYHEADER
-HID, V, NOTE = sys.argv[2], sys.argv[3], sys.argv[4]
+HID, V, NOTE, EVIDENCE, WAIVE_EV, WAIVE_REASON, WS_DIR = sys.argv[2:9]
 d = load()
 it = next((i for i in d["items"] if i["id"]==HID), None)
 if not it: print(f"❌ {HID} not found."); sys.exit(1)
 if V not in ("confirmed","falsified","inconclusive"):
     print("❌ verdict must be: confirmed | falsified | inconclusive"); sys.exit(2)
+
+# ===== HARD ENFORCEMENT: EVIDENCE RULE for confirmed =====
+# A 'confirmed' verdict must point at a real artefact under the
+# engagement folder (loot, creds, exploits, web, nmap, etc.).
+# An empty loot dir plus confirmed rows is the R2 violation that bit
+# us on facts.htb. Falsified / inconclusive don't require evidence
+# (the negative result IS the evidence).
+if V == "confirmed" and WAIVE_EV != "yes":
+    if not EVIDENCE:
+        print("❌ EVIDENCE RULE BLOCK — 'confirmed' requires --evidence <path>.")
+        print("")
+        print("   A confirmed hypothesis without an artefact on disk is just")
+        print("   narration. Save the proof first:")
+        target = d.get("target","")
+        slug = ''.join(c for c in target.replace('/','-')
+                       if c.isalnum() or c in '._-')
+        print(f"     reports/{slug}/loot/<file>     # flags, dumps, screenshots")
+        print(f"     reports/{slug}/creds/<file>    # credentials, hashes, keys")
+        print(f"     reports/{slug}/exploits/<file> # PoC payloads, transcripts")
+        print("")
+        print("   Then re-run with: --evidence <path>")
+        print("   Genuine no-artefact case (rare): --waive-evidence \"<reason>\"")
+        sys.exit(1)
+    # Resolve --evidence path: accept absolute, or relative to WS, or to engagement folder.
+    target = d.get("target","")
+    slug = ''.join(c for c in target.replace('/','-')
+                   if c.isalnum() or c in '._-')
+    eng_dir = os.path.join(WS_DIR, "reports", slug)
+    candidates = [
+        EVIDENCE,
+        os.path.join(eng_dir, EVIDENCE),
+        os.path.join(WS_DIR, EVIDENCE),
+    ]
+    found = next((p for p in candidates
+                  if os.path.exists(p) and os.path.getsize(p) > 0), None)
+    if not found:
+        print(f"❌ EVIDENCE RULE BLOCK — '{EVIDENCE}' does not exist or is empty.")
+        print("")
+        print("   Looked in:")
+        for p in candidates:
+            print(f"     {p}")
+        print("")
+        print("   Save the artefact, then retry. To override (rare):")
+        print("     --waive-evidence \"<reason>\"")
+        sys.exit(1)
+    it["evidence"] = os.path.relpath(found, WS_DIR)
+
 it["status"] = "tested"
 it["result"] = V
 it["note"] = NOTE
 it["tested_at"] = int(time.time())
+if WAIVE_EV == "yes":
+    it["evidence_waiver"] = {"reason": WAIVE_REASON, "at": int(time.time())}
 save(d)
 print(f"✅ {HID} → {V}")
+if V == "confirmed" and it.get("evidence"):
+    print(f"   evidence: {it['evidence']}")
 if V == "confirmed":
     print()
     print("⚠  CHAIN RULE: a confirmed hypothesis MUST generate a new")
@@ -293,6 +355,40 @@ elif V == "falsified":
         print("🚨 PIVOT RULE: 3 hypotheses falsified in the last hour.")
         print("   Your TARGET MODEL is probably wrong. Reread surface.md")
         print("   and rewrite target-model.md before adding more hypotheses.")
+    # ===== OOB HUMAN-GATE DETECTOR =====
+    # If ≥3 of the most recent falsifications all reference the same
+    # human-gate keyword in their hypothesis text or note, suggest R15.
+    GATE_KEYWORDS = {
+        "captcha":  ["captcha", "recaptcha", "hcaptcha"],
+        "email":    ["email verif", "verify email", "confirmation email", "verification link"],
+        "sms":      ["sms verif", "phone verif", "otp sms"],
+        "mfa":      [" mfa", "2fa", "totp", "authenticator app"],
+        "oauth":    ["oauth", "google login", "github login", "sso"],
+        "kyc":      ["kyc", "id verification", "identity check"],
+    }
+    recent3 = falsified_recent[:5]
+    for gate, kws in GATE_KEYWORDS.items():
+        hits = [i for i in recent3
+                if any(kw in (i.get("h","") + " " + i.get("note","")).lower()
+                       for kw in kws)]
+        if len(hits) >= 3:
+            print()
+            print(f"🚨 OOB HUMAN-GATE DETECTED ({gate.upper()})")
+            print("   3+ recent falsifications all target the same human-only barrier.")
+            print("   Per AGENTS.md R15, the gate is now a fact, not a hypothesis.")
+            print("   Hand off to the human:")
+            print("")
+            tried_summary = "; ".join(
+                (i.get("note") or i.get("h",""))[:80] for i in hits[:3]
+            ).replace('"',"'")
+            target = d.get("target","")
+            BSL = chr(92)  # avoid backslash-at-end-of-fstring quirks
+            print("     bash scripts/request-human.sh " + BSL)
+            print(f"       --target {target} --gate {gate} " + BSL)
+            print(f'       --tried "{tried_summary}" ' + BSL)
+            print('       --need "<one line: what artefact you need from the human>" ' + BSL)
+            print('       --resume-with "<one line: the next H you will fire on response>"')
+            break
 PY
     ;;
 
