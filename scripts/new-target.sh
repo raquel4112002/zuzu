@@ -55,7 +55,7 @@ else
   echo "[*] Creating: $DIR"
 fi
 
-mkdir -p "$DIR"/{nmap,web,creds,loot}
+mkdir -p "$DIR"/{nmap,web,creds,loot,exploits,tunnels}
 
 # Only create README if it doesn't exist (don't overwrite)
 if [[ ! -f "$DIR/README.md" ]]; then
@@ -116,6 +116,102 @@ _Free-form running notes. Refine into the report when the engagement ends._
 
 EOF
   echo "[+] Created: $DIR/notes.md"
+fi
+
+# ENGAGEMENT.md — the working-state contract any LLM can read at any
+# point to know exactly where things stand. Updated after every phase.
+if [[ ! -f "$DIR/ENGAGEMENT.md" ]]; then
+  cat > "$DIR/ENGAGEMENT.md" <<EOF
+# ENGAGEMENT — $TARGET${HOSTNAME:+ ($HOSTNAME)}
+
+> Working-state contract. **Update this after every phase.** A new
+> operator (or LLM) should be able to read this file and resume work
+> in seconds. Keep it short, factual, current.
+
+**Started:** $(date -Iseconds)
+**Status:** 🟡 active — recon
+**Stop condition:** user.txt + root.txt (or documented blocker w/ H1/H2/H3)
+
+---
+
+## 1. Target
+
+- **IP / host:** $TARGET
+${HOSTNAME:+- **Hostname / vhost:** $HOSTNAME}
+- **Engagement type:** _(HTB / lab / bug bounty / authorized pentest)_
+- **Scope:** _(what's in / out)_
+- **Time budget:** _(if any)_
+
+## 2. Open ports & services
+
+_Updated by zero.sh and your follow-up scans. Keep it as a flat list._
+
+| Port | Proto | Service | Version | Notes |
+|------|-------|---------|---------|-------|
+| | | | | |
+
+## 3. Identified attack surface
+
+_What's reachable, what's interesting, what's been ruled out._
+
+- [ ] Web app(s): _(URLs)_
+- [ ] Auth wall(s): _(login form, basic auth, JWT, etc.)_
+- [ ] File services: _(SMB shares, FTP, NFS)_
+- [ ] AD / Kerberos: _(domain, controller, users harvested)_
+- [ ] Open-source app identified: _(name, version → source-dive done? y/n)_
+- [ ] Known CVE candidates: _(CVE-id → status)_
+
+## 4. Credentials & artefacts collected
+
+| Type | Value (last 4 / hash prefix only) | Source | Tested where | Status |
+|------|----------------------------------|--------|--------------|--------|
+| | | | | |
+
+_Full creds live in \`creds/\` (not in this file, not in git)._
+
+## 5. Foothold(s)
+
+- [ ] Initial access: _(user, host, method)_
+- [ ] Privesc to root/SYSTEM: _(method)_
+- [ ] Lateral targets: _(host list)_
+
+## 6. Flags / proof
+
+- [ ] **user.txt** — _(path + hash)_
+- [ ] **root.txt** — _(path + hash)_
+- [ ] Other proof: _(screenshot path, command transcript path)_
+
+## 7. Stuck-gate / hypotheses
+
+_Only fill this in if you've stalled ≥ 2 attempts in a phase. Each
+hypothesis must have a single command that confirms or falsifies it._
+
+- **H1** — 
+  - Falsifier: \`...\`
+  - Result: _pending_
+- **H2** — 
+  - Falsifier: \`...\`
+  - Result: _pending_
+- **H3** — 
+  - Falsifier: \`...\`
+  - Result: _pending_
+
+## 8. Next move
+
+_The single, concrete next command — never empty during an active engagement._
+
+\`\`\`bash
+# example:
+# bash scripts/timebox.sh 90 nmap -sU --top-ports 50 -oA $DIR/nmap/udp $TARGET
+\`\`\`
+
+## 9. Resume hint (for the next operator / LLM)
+
+_If you have to hand off, write 2-3 lines here describing the current
+state, the most promising path, and the single command to run next._
+
+EOF
+  echo "[+] Created: $DIR/ENGAGEMENT.md"
 fi
 
 # Print the next-step hints

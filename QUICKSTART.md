@@ -1,50 +1,60 @@
-# QUICKSTART — Attack a target (1 page, no thinking required)
+# QUICKSTART — Engage a target (one page, no thinking required)
 
-> If you have a target IP/hostname, this is the only file you need to read.
-> Every other file is referenced from here.
+> If you have a target, this page is enough. Everything else is referenced
+> from here. **Do not read other docs first** — run the loop, branch when
+> the orchestrator points you somewhere.
 
 ---
 
-## The one command you always run first
+## The one command
 
 ```bash
-bash scripts/zero.sh <target-ip-or-hostname>
+bash scripts/pentest.sh <target> [hostname]
 ```
 
-It does, automatically:
-1. Creates `reports/<target>/` with the right folder structure.
-2. Confirms reachability.
-3. Quick port scan (top-1000, timeboxed 90s).
-4. Fingerprints the stack (Wing FTP? WordPress? Jenkins? AD?).
-5. **Tells you exactly which runbook or archetype to follow.**
+It does, deterministically:
 
-The output is deterministic. Just read it and follow the action plan.
+1. Creates `reports/<target>/` with the right folders + `ENGAGEMENT.md` card.
+2. Runs `zero.sh` — quick scan + service fingerprint + archetype/runbook match.
+3. Initialises the orchestrator state.
+4. Prints the **next command** explicitly.
+
+Examples:
+
+```bash
+bash scripts/pentest.sh 10.10.10.50
+bash scripts/pentest.sh 10.129.244.98 airtouch.htb
+```
 
 ---
 
-## What to do with the action plan
+## Then loop until done
 
-zero.sh always ends in one of three states:
+```bash
+bash scripts/orchestrator.sh think                         # next move
+# … execute that move with real tools …
+bash scripts/orchestrator.sh report "<concrete result>"    # log & advance
+```
 
-### A. ✨ Runbook match
-```
-✨ RUNBOOK MATCH (copy-paste, end-to-end):
-   ✅ playbooks/runbooks/wing-ftp-rooted.md
-```
-**→ Open that runbook. Follow it literally. It has every command + expected
-output. Do not improvise — the runbook is validated end-to-end.**
+Repeat. The orchestrator drives phase progression automatically.
 
-### B. 📚 Archetype match
-```
-📚 ARCHETYPE MATCH:
-   ✅ playbooks/archetypes/<name>.md
-```
-**→ Open that archetype. It has fast checks (≤5min), deep checks, known
-CVEs, and common pitfalls. No literal copy-paste, but a tight checklist.**
+---
 
-### C. 📋 No match
-**→ Read `knowledge-base/llm-hacking-context.md`** for the generic decision
-tree, then `playbooks/web-app-pentest.md` or `playbooks/network-pentest.md`.
+## When you think you're done
+
+```bash
+bash scripts/stop-gate.sh <target> --why
+```
+
+This is a **deterministic** check — exit 0 means stop is allowed; exit 1
+means keep working. The script prints exactly what's missing. Don't
+self-rationalise past it.
+
+You're allowed to stop when **one** is true:
+
+- ✅ `loot/user.txt` and `loot/root.txt` exist and are non-empty
+- ✅ A flag file is in `loot/` AND a "Flags / proof" box is ticked in `ENGAGEMENT.md`
+- ✅ Three hypotheses (H1/H2/H3) are written + falsified in `ENGAGEMENT.md` AND mirrored in `notes.md`
 
 ---
 
@@ -53,52 +63,64 @@ tree, then `playbooks/web-app-pentest.md` or `playbooks/network-pentest.md`.
 ```bash
 bash scripts/orchestrator.sh think
 ```
-The orchestrator detects loops and forces you to write a 3-hypothesis
-worksheet. Reading the worksheet output — not improvising — is the way out.
 
-If the orchestrator says "stuck-gate triggered", **your next report MUST
-include H1/H2/H3 hypothesis lines** or it will be rejected.
+It detects the loop and forces the stuck-reasoning worksheet. The next
+report you submit must include H1/H2/H3 lines — **the orchestrator will
+reject reports without them once the gate trips.**
+
+If the gate already tripped, also read:
+
+- `knowledge-base/checklists/stuck-reasoning.md`
+- `knowledge-base/creative-pivots.md`
+- `knowledge-base/checklists/operator-fallbacks.md`
 
 ---
 
-## Helpers — use these by name, not by reinventing
+## Mandatory helpers (use them by name, don't reinvent)
 
 | Helper | When |
 |---|---|
-| `scripts/timebox.sh <secs> <cmd>` | **Wrap every brute-force / dir-bust.** Default 90s. |
-| `scripts/source-dive.sh <repo> [tag]` | Open-source app + auth wall? Source-dive BEFORE brute force. |
+| `scripts/timebox.sh <secs> <cmd>` | Wrap **every** brute-force / dir-bust. Default 90s. |
+| `scripts/source-dive.sh <repo> [tag]` | Open-source app + auth wall? **Source-dive before brute-force.** |
 | `scripts/walkthrough-search.sh <name>` | Retired HTB box? Get HINTS (no spoilers). |
-| `scripts/new-target.sh <ip>` | Standalone folder creation (zero.sh calls it for you). |
-| `bash scripts/context-broker.sh <topic>` | Don't know which file to read? Ask the broker. |
+| `scripts/new-target.sh <ip>` | Standalone folder creation (pentest.sh / zero.sh call it). |
+| `scripts/context-broker.sh <topic>` | Don't know which doc to read? Ask the broker. |
 
 ---
 
-## Hard rules (no exceptions)
+## Hard rules (full list in `AGENTS.md`)
 
-1. **Never write loose files in `reports/`** — always `reports/<target>/...`.
-2. **No blind code execution** — ask Raquel before running any code from the internet.
-3. **Wrap brute-force in timebox.sh** — 90s budget for hydra; if it exhausts, change vector, don't bigger-wordlist it.
-4. **Source-dive before brute force** on open-source web apps.
-5. **Reports/memory/state stay LOCAL** — never commit. See `AGENTS.md` § 8.
-6. **Per-target work in `reports/<target>/{nmap,web,creds,loot}/`** — created by `new-target.sh`/`zero.sh`.
-
----
-
-## When you finish
-
-1. Write the report at `reports/<target>/report.md` using `templates/attack-report-template.md`.
-2. Add the CVE/exploit-db ID to `knowledge-base/cve-to-exploit-cache.md` if it was new.
-3. If the target was distinctive enough, **author a runbook** in `playbooks/runbooks/<name>.md` so the next operator (or LLM) goes faster.
+1. Never write loose files in `reports/` — always `reports/<target>/...`.
+2. No blind code execution — review downloaded scripts first; ask for non-Kali installs.
+3. Wrap brute-force in `timebox.sh`. If it busts, **change vector**, don't bigger-wordlist it.
+4. Source-dive before brute-force on open-source apps.
+5. Reports / memory / state / loot stay LOCAL — never commit. See `AGENTS.md § 3 R9`.
+6. Per-target work in `reports/<target>/{nmap,web,creds,loot,exploits,tunnels}/`.
+7. Stuck-gate triggered ⇒ next report MUST have H1/H2/H3 hypotheses.
+8. Don't enumerate forever — credible exploit path = take it.
 
 ---
 
-## What this file replaces
+## After you finish
 
-This is the **single entry point**. The legacy AUTOPILOT.md still exists for
-reference but you do not need it for normal engagements — `zero.sh` covers
-the same ground in 90 seconds.
+1. Write `reports/<target>/report.md` from `templates/attack-report-template.md`.
+2. Update `ENGAGEMENT.md` status to `🟢 done` (or `🔴 blocked` with the documented blocker).
+3. Add new CVEs to `knowledge-base/cve-to-exploit-cache.md`.
+4. If the target was distinctive, **author a runbook** in
+   `playbooks/runbooks/<name>.md` so the next operator (or LLM) goes faster.
+5. Drop a sanitised lesson into `learnings/` if you discovered something
+   reusable.
 
-If `zero.sh` is missing or broken, fall back to:
-- `AUTOPILOT.md` Section F (Auto-Recon)
-- `AGENTS.md` for the rules
-- `knowledge-base/llm-hacking-context.md` for the manual decision tree
+---
+
+## Fallbacks (if `pentest.sh` is unavailable)
+
+```bash
+# Equivalent manual sequence
+bash scripts/new-target.sh <target>
+bash scripts/zero.sh <target>
+bash scripts/orchestrator.sh init <target>
+bash scripts/orchestrator.sh think
+```
+
+Don't deviate from this loop unless you have a reason backed by evidence.

@@ -54,13 +54,18 @@ ssh-keygen -t ed25519 -C "zuzu@kali" -f ~/.ssh/github_zuzu
 ## What's in the Repo
 
 ```
-├── AGENTS.md              # Operating rules (loaded by all sessions)
+├── AGENTS.md              # Operating contract (loaded every session)
+├── PILOT.md               # Autonomous-loop mission spec
+├── QUICKSTART.md          # One-page reflex card
+├── REFERENCE.md           # Detailed technical rules
+├── AUTOPILOT.md           # Manual-mode fallback
 ├── SOUL.md                # Zuzu's identity and personality
 ├── IDENTITY.md            # Name, creature, vibe
 ├── USER.md                # About Raquel
 ├── TOOLS.md               # Local tool notes
 ├── BOOTSTRAP.md           # This file
 ├── HEARTBEAT.md           # Heartbeat config
+├── MEMORY.md              # Durable lessons (NOT per-target state)
 ├── knowledge-base/
 │   ├── llm-hacking-context.md  # Decision tree for loading the right context
 │   ├── mitre-attack/
