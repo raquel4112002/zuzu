@@ -65,6 +65,57 @@ artefact_status "$DIR/hypotheses.json"   "hypotheses.json  (Layer 4 — bank, ra
 artefact_status "$DIR/external-refs.md"  "external-refs.md (live knowledge fetched)"
 echo ""
 
+# Anti-skip enforcement: if the operator has been in this engagement long
+# enough to have run any commands (orchestrator phase != 'recon/portscan'
+# OR notes.md has content beyond the seed), then the reasoning artefacts
+# must have actual content, not just the scaffolded templates. We measure
+# by word count above the seed templates' word counts.
+#
+# Seed sizes (approximate, from pentest.sh templates):
+#   surface.md        ~80 words
+#   target-model.md   ~340 words
+#   assumptions.md    ~210 words
+if [[ "$MODE" != "--brief" ]]; then
+  HAS_NOTES="no"
+  if [[ -f "$DIR/notes.md" ]] && [[ $(wc -w <"$DIR/notes.md" | tr -d ' ') -gt 30 ]]; then
+    HAS_NOTES="yes"
+  fi
+  HAS_HYPS="no"
+  if [[ -f "$DIR/hypotheses.json" ]]; then
+    HC=$(python3 -c "import json; print(len(json.load(open('$DIR/hypotheses.json'))['items']))" 2>/dev/null || echo 0)
+    [[ "$HC" -gt 0 ]] && HAS_HYPS="yes"
+  fi
+
+  # If notes show activity OR hypotheses exist, the artefacts must too.
+  if [[ "$HAS_NOTES" == "yes" || "$HAS_HYPS" == "yes" ]]; then
+    SKIP_BLOCK=""
+    [[ ! -s "$DIR/surface.md"      || $(wc -w <"$DIR/surface.md"      | tr -d ' ') -lt 100 ]] && SKIP_BLOCK+="surface.md (need >100 words of real observations) "
+    [[ ! -s "$DIR/target-model.md" || $(wc -w <"$DIR/target-model.md" | tr -d ' ') -lt 380 ]] && SKIP_BLOCK+="target-model.md (need >380 words = template + real content) "
+    [[ ! -s "$DIR/assumptions.md"  || $(wc -w <"$DIR/assumptions.md"  | tr -d ' ') -lt 250 ]] && SKIP_BLOCK+="assumptions.md (need >250 words = template + real assumptions) "
+    if [[ -n "$SKIP_BLOCK" ]]; then
+      cat <<SKIPMSG
+⚠️  ANTI-SKIP CHECK — reasoning artefacts are below threshold.
+
+You've started doing work (notes/hypotheses exist) but the structured
+reasoning files are still at template-default size. That means you're
+running tools without writing down what you found / what you're
+assuming / what you're betting on. Stop and fix:
+
+  Files that need real content: $SKIP_BLOCK
+
+What to do RIGHT NOW (no further commands until this is done):
+  1. Open $DIR/surface.md       — paste actual port banners, URLs, headers.
+  2. Open $DIR/target-model.md  — fill in real nodes/edges/trust labels.
+  3. Open $DIR/assumptions.md   — list at least 8 specific assumptions.
+
+Then re-run: bash scripts/think.sh
+
+SKIPMSG
+      exit 1
+    fi
+  fi
+fi
+
 # 2) Hypothesis bank summary
 echo "## 2. Hypothesis bank"
 echo ""

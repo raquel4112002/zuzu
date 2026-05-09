@@ -64,20 +64,71 @@ if compgen -G "$DIR/loot/*flag*.txt" >/dev/null 2>&1; then
   fi
 fi
 
-# C) Documented blocker — 3 hypotheses with non-pending results
+# C) Documented blocker — either path is acceptable:
+#   C1) hypothesis bank shows ≥ 3 falsified entries AND any confirmed
+#       hypothesis is chained, AND target-model.md was updated after the
+#       3rd falsification (proves the operator pivoted before giving up).
+#   C2) Legacy: ENGAGEMENT.md H1/H2/H3 lines + notes.md mirroring.
+
+BANK="$DIR/hypotheses.json"
+C1_OK="no"
+if [[ -f "$BANK" ]]; then
+  C1_VERDICT=$(python3 - "$BANK" "$DIR/target-model.md" <<'PY'
+import json, sys, os
+b_path, tm_path = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(b_path))
+except Exception:
+    print("unreadable"); sys.exit(0)
+items = d.get("items", [])
+falsified = [i for i in items if i.get("result") == "falsified"]
+confirmed = [i for i in items if i.get("result") == "confirmed"]
+unchained = [i for i in confirmed if not i.get("chains_to")]
+if len(falsified) < 3:
+    print(f"need-falsified|got={len(falsified)}"); sys.exit(0)
+if unchained:
+    ids = ','.join(i['id'] for i in unchained[:5])
+    print(f"unchained-confirmed|{ids}"); sys.exit(0)
+last_fals = max(i.get("tested_at",0) for i in falsified)
+tm_mtime = os.path.getmtime(tm_path) if os.path.exists(tm_path) else 0
+if tm_mtime <= last_fals:
+    print("model-not-updated"); sys.exit(0)
+print("ok")
+PY
+  )
+  if [[ "$C1_VERDICT" == "ok" ]]; then
+    C1_OK="yes"
+    reason "✅ STOP OK — hypothesis bank: ≥3 falsified, all confirmed are chained, target-model.md was updated after pivot."
+    exit 0
+  fi
+fi
+
+# C2 (legacy markdown path)
 if [[ -f "$ENG" ]]; then
   H_LINES=$(grep -cE '^\s*-\s*\*\*H[123]\*\*' "$ENG" 2>/dev/null || echo 0)
   PENDING=$(grep -cE 'Result:\s*_pending_' "$ENG" 2>/dev/null || echo 0)
   if (( H_LINES >= 3 )) && (( PENDING == 0 )); then
     NOTES="$DIR/notes.md"
     if [[ -f "$NOTES" ]] && grep -q "H1" "$NOTES" && grep -q "H2" "$NOTES" && grep -q "H3" "$NOTES"; then
-      reason "✅ STOP OK — three hypotheses falsified in ENGAGEMENT.md and recorded in notes.md."
+      reason "✅ STOP OK — ENGAGEMENT.md hypotheses + notes.md evidence (legacy path)."
       exit 0
-    else
-      reason "❌ Keep working. ENGAGEMENT.md has 3 hypotheses but notes.md is missing H1/H2/H3 evidence."
-      exit 1
     fi
   fi
+fi
+
+# If C1 was attempted but failed, surface the specific failure.
+if [[ -n "${C1_VERDICT:-}" && "$C1_VERDICT" != "ok" ]]; then
+  case "$C1_VERDICT" in
+    need-falsified*)
+      reason "❌ C1 path: need ≥3 falsified hypotheses in the bank ($C1_VERDICT)."
+      ;;
+    unchained-confirmed*)
+      reason "❌ C1 path: confirmed hypotheses are unchained: ${C1_VERDICT#unchained-confirmed|}. Run hypotheses.sh chain <id> ..."
+      ;;
+    model-not-updated)
+      reason "❌ C1 path: target-model.md has not been updated since the most recent falsification — you didn't pivot, you just gave up."
+      ;;
+  esac
 fi
 
 # Otherwise: not allowed to stop. Tell the model exactly what's missing.
@@ -99,11 +150,14 @@ To stop, satisfy ONE of:
     - Tick a "Flags / proof" checkbox in $DIR/ENGAGEMENT.md
       (e.g. "- [x] root.txt — <hash>")
 
- C) Documented blocker (only if attack genuinely impossible right now)
-    - Fill the "Stuck-gate / hypotheses" section in ENGAGEMENT.md with
-      H1, H2, H3 — each with a falsifier command and a non-pending Result.
-    - Mirror H1/H2/H3 evidence into $DIR/notes.md.
+ C) Documented blocker — EITHER:
+    C1) Hypothesis bank shows ≥3 falsified entries; any confirmed
+        hypothesis is chained; target-model.md was updated AFTER the
+        most recent falsification (= you pivoted, not just gave up).
+          bash scripts/hypotheses.sh stats
+          bash scripts/hypotheses.sh chain <id> "<next-stage H>"
+    C2) Legacy: H1/H2/H3 in ENGAGEMENT.md + mirrored in notes.md.
 
-Until then: bash scripts/orchestrator.sh think
+Until then: bash scripts/think.sh
 EOF
 exit 1

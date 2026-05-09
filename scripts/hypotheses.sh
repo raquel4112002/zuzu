@@ -83,32 +83,100 @@ case "$ACTION" in
     COST="MED"
     IMPACT="MED"
     SOURCE="guess"
+    WAIVE_CHAIN="no"
+    WAIVE_PIVOT="no"
+    WAIVE_REASON=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --falsifier) FALSIFIER="$2"; shift 2;;
-        --phase)     PHASE="$2"; shift 2;;
-        --cost)      COST="$2"; shift 2;;
-        --impact)    IMPACT="$2"; shift 2;;
-        --source)    SOURCE="$2"; shift 2;;
+        --falsifier)    FALSIFIER="$2"; shift 2;;
+        --phase)        PHASE="$2"; shift 2;;
+        --cost)         COST="$2"; shift 2;;
+        --impact)       IMPACT="$2"; shift 2;;
+        --source)       SOURCE="$2"; shift 2;;
+        --waive-chain)  WAIVE_CHAIN="yes"; WAIVE_REASON="$2"; shift 2;;
+        --waive-pivot)  WAIVE_PIVOT="yes"; WAIVE_REASON="$2"; shift 2;;
         *) shift;;
       esac
     done
-    py - "$BANK" "$H" "$FALSIFIER" "$PHASE" "$COST" "$IMPACT" "$SOURCE" <<PY
+    py - "$BANK" "$H" "$FALSIFIER" "$PHASE" "$COST" "$IMPACT" "$SOURCE" "$WAIVE_CHAIN" "$WAIVE_PIVOT" "$WAIVE_REASON" "$WS" <<PY
 $PYHEADER
-H, FALS, PHASE, COST, IMPACT, SRC = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7]
+H, FALS, PHASE, COST, IMPACT, SRC = sys.argv[2:8]
+WAIVE_CHAIN, WAIVE_PIVOT, WAIVE_REASON, WS = sys.argv[8:12]
 d = load()
+
+# ===== HARD ENFORCEMENT: CHAIN RULE =====
+# Refuse to add a new hypothesis if there's a confirmed one without
+# a chain link — the chain must be created first. Prevents drift.
+unchained = [i for i in d["items"]
+             if i.get("result") == "confirmed" and not i.get("chains_to")]
+if unchained and WAIVE_CHAIN != "yes":
+    print("❌ CHAIN RULE BLOCK — cannot add new H while a confirmed H is unchained.")
+    print("")
+    print("   The following confirmed hypotheses have NO next-stage chain:")
+    for it in unchained[:5]:
+        print(f"     {it['id']}  ({it.get('phase','?')}): {it['h'][:80]}")
+    print("")
+    print("   Fix one of:")
+    print("     1) Chain it (preferred):")
+    print(f"          bash scripts/hypotheses.sh chain {unchained[0]['id']} \"<next-stage H>\"")
+    print("     2) Waive (rare — e.g. dead-end finding, no further phase applies):")
+    print(f"          bash scripts/hypotheses.sh add ... --waive-chain \"<reason>\"")
+    sys.exit(1)
+
+# ===== HARD ENFORCEMENT: PIVOT RULE =====
+# If 3+ hypotheses were falsified in the last hour, refuse to add new
+# hypotheses until target-model.md has been touched (mtime > newest
+# falsification). Forces the LLM to rewrite the model first.
+import os
+now = time.time()
+recent_fals = [i for i in d["items"]
+               if i.get("result") == "falsified"
+               and i.get("tested_at") and now - i["tested_at"] < 3600]
+if len(recent_fals) >= 3 and WAIVE_PIVOT != "yes":
+    target = d.get("target","")
+    slug = ''.join(c for c in target.replace('/','-')
+                   if c.isalnum() or c in '._-')
+    tm_path = os.path.join(WS, "reports", slug, "target-model.md")
+    newest_fals = max(i.get("tested_at",0) for i in recent_fals)
+    tm_mtime = os.path.getmtime(tm_path) if os.path.exists(tm_path) else 0
+    if tm_mtime <= newest_fals:
+        print("❌ PIVOT RULE BLOCK — 3 hypotheses falsified in last hour")
+        print("   AND target-model.md has not been updated since.")
+        print("")
+        print("   Your target model is probably wrong. Rewrite it before")
+        print("   adding more hypotheses, otherwise you're guessing in")
+        print("   the wrong space.")
+        print("")
+        print(f"   Edit: {tm_path}")
+        print("")
+        print("   To override (rare — e.g. probing a totally new vector):")
+        print("     bash scripts/hypotheses.sh add ... --waive-pivot \"<reason>\"")
+        sys.exit(1)
+
 hid = next_id(d)
-d["items"].append({
+item = {
     "id": hid, "h": H, "falsifier": FALS, "phase": PHASE or "?",
     "cost": COST, "impact": IMPACT, "source": SRC,
     "status": "open", "result": None, "note": "",
     "created": int(time.time()), "tested_at": None, "chains_to": []
-})
+}
+if WAIVE_CHAIN == "yes" or WAIVE_PIVOT == "yes":
+    item["waiver"] = {
+        "chain": WAIVE_CHAIN == "yes",
+        "pivot": WAIVE_PIVOT == "yes",
+        "reason": WAIVE_REASON,
+        "at": int(time.time())
+    }
+d["items"].append(item)
 save(d)
 print(f"✅ {hid} added.")
 print(f"   {H}")
 print(f"   falsifier: {FALS or '(none — add one before testing)'}")
 print(f"   cost={COST} impact={IMPACT} source={SRC} phase={PHASE or '?'}")
+if WAIVE_CHAIN == "yes":
+    print(f"   ⚠  chain rule WAIVED: {WAIVE_REASON}")
+if WAIVE_PIVOT == "yes":
+    print(f"   ⚠  pivot rule WAIVED: {WAIVE_REASON}")
 PY
     ;;
 
