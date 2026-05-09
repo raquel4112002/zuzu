@@ -65,6 +65,53 @@ artefact_status "$DIR/hypotheses.json"   "hypotheses.json  (Layer 4 — bank, ra
 artefact_status "$DIR/external-refs.md"  "external-refs.md (live knowledge fetched)"
 echo ""
 
+# Stuck + no-recent-knowledge-lookup nudge: if the orchestrator's phase
+# history shows >=3 attempts in the same sub-phase AND external-refs.md
+# has not been updated in the last 60 minutes, point the LLM at the
+# knowledge-probe scripts. Stuck without looking things up = drift.
+if [[ -f "$STATE_FILE" && -f "$DIR/external-refs.md" ]]; then
+  REPEATS=$(python3 -c "
+import json, sys
+try:
+    s = json.load(open('$STATE_FILE'))
+    h = s.get('phase_history', []) or []
+    if len(h) < 3:
+        print(0); sys.exit(0)
+    tail = h[-3:]
+    p = tail[0].get('phase'); sp = tail[0].get('sub')
+    same = all(x.get('phase')==p and x.get('sub')==sp for x in tail)
+    print(3 if same else 0)
+except Exception:
+    print(0)
+" 2>/dev/null || echo 0)
+  if [[ "$REPEATS" == "3" ]]; then
+    REFS_AGE=$(( $(date +%s) - $(stat -c %Y "$DIR/external-refs.md" 2>/dev/null || echo 0) ))
+    if (( REFS_AGE > 3600 )); then
+      cat <<KNOWLEDGE
+⚠️  STUCK + NO RECENT KNOWLEDGE LOOKUP
+
+You've been on the same sub-phase for 3+ attempts and external-refs.md
+hasn't been touched in over an hour. That means you're trying the same
+thing harder rather than looking outward.
+
+Pick one and run it NOW:
+  bash scripts/recon-cve.sh   "<product> <version>"
+  bash scripts/recon-mitre.sh "<the technique you wish you knew>"
+  bash scripts/recon-hacktricks.sh "<the thing you don't quite know how to do>"
+  bash scripts/recon-tech.sh  "<keyword>"
+  bash scripts/source-dive.sh <repo>  (if open-source target)
+
+Or use OpenClaw built-ins directly:
+  web_search "..."     web_fetch "<url>"
+
+Then append URL + 2-line summary to:
+  $DIR/external-refs.md
+
+KNOWLEDGE
+    fi
+  fi
+fi
+
 # Anti-skip enforcement: if the operator has been in this engagement long
 # enough to have run any commands (orchestrator phase != 'recon/portscan'
 # OR notes.md has content beyond the seed), then the reasoning artefacts
@@ -258,5 +305,24 @@ cat <<EOF
 - Saying "needs auth" → source-dive.sh + creativity catalog § C first.
 - "Doesn't match a known archetype" → THIS IS the time to use THINK.md, not give up.
 - No notes since last command → you're acting without thinking. Stop.
+
+## 5. Have you actually looked things up?
+
+The Nest gives you autonomous internet access. Saying "I don't know"
+is a behavioural failure, not a real limit. Concrete probes:
+
+  bash scripts/recon-cve.sh   "<product> <version>"   # NVD + GitHub PoCs
+  bash scripts/recon-poc.sh   "CVE-YYYY-NNNNN"        # caches PoCs locally
+  bash scripts/recon-mitre.sh "<technique>"           # official MITRE ATT&CK
+  bash scripts/recon-hacktricks.sh "<topic>"          # HackTricks + Payloads + GTFOBins
+  bash scripts/recon-tech.sh  "<keyword>"             # Tavily → DDG general
+  bash scripts/source-dive.sh <repo> [tag]            # auth bypasses in source
+  bash scripts/web-fetch.sh   <url>                   # any URL → markdown
+
+You also have OpenClaw built-in tools available DIRECTLY:
+  • web_search    — provider-routed search (no script needed)
+  • web_fetch     — single-URL extract (no script needed)
+  • tavily-search-pro skill — research mode with citations
+  • stealth-browser skill  — Cloudflare / JS / login-walled pages
 
 EOF

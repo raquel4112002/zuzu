@@ -157,6 +157,49 @@ is the only loop that works.
 
 ---
 
+## When to search the internet (decision rule)
+
+The Nest gives you autonomous internet access at all times. There is no
+permission gate. You are expected to use it. Concrete triggers — if any
+is true, search **before** running another tool:
+
+1. You see a product name + version you can't immediately classify (e.g.
+   `Server: WingFTP/7.4.3`, `X-Powered-By: Strapi 4.19`, an unfamiliar
+   admin panel logo).
+   → `bash scripts/recon-cve.sh "<product> <version>"`
+
+2. You hit a CVE ID in any output (nmap, nuclei, dependency scanner, error
+   page, a blog post you read).
+   → `bash scripts/recon-poc.sh CVE-YYYY-NNNNN`
+
+3. You know the *technique* you want but not the *exact syntax*
+   (kerberoasting, AS-REP roast, RBCD, padding oracle, JWT alg=none).
+   → `bash scripts/recon-mitre.sh "<technique>"` for the canonical
+     reference, then `bash scripts/recon-hacktricks.sh "<topic>"` for
+     payload-level recipes.
+
+4. You have a Linux binary on a target with SUID / sudo / capability
+   privilege you're not sure how to abuse (e.g. `tar`, `find`, `vim.basic`).
+   → `bash scripts/recon-hacktricks.sh --gtfobins <binary>`
+
+5. You're about to ask yourself "how do I exploit X" — don't ask, look up.
+   → `bash scripts/recon-tech.sh "<question>"` (Tavily → DDG)
+   → or call `web_search` directly
+
+6. You have a URL of a writeup / docs page / blog post.
+   → `bash scripts/web-fetch.sh <url>` or call `web_fetch` directly
+
+7. The target runs an open-source app. **Always source-dive** before
+   brute-force or auth-wall surrender.
+   → `bash scripts/source-dive.sh <repo> [tag]`
+
+Logging discipline: every external lookup that produced a useful result
+must be appended to `reports/<target>/external-refs.md` with the URL
+and a 2-line summary. This is how the engagement persists knowledge
+between turns and across operators.
+
+"I don't know" is never a valid stop. It is always a trigger to search.
+
 ## Resourcefulness mandates (force-multipliers)
 
 1. **Always** run `pentest.sh` first. It bootstraps surface + state.
