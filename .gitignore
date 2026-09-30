@@ -140,3 +140,11 @@ top1000*.txt
 
 # ── Git/dev junk ──────────────────────────────────────────────────
 .git/maintenance.lock
+
+# ── Benchmark: raw per-run rows are local only (contain IPs) ──
+benchmark/results/
+# Aggregates below are SANITIZED (no IPs, no flag values) and safe to commit
+# for the thesis: benchmark/RESULTS-LOG.md, RESULTS.md, results.csv
+
+# ── Staged offensive tool binaries — local only, re-fetched by scripts/install-tools.sh ──
+tools/

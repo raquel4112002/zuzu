@@ -36,8 +36,39 @@ Archetypes:
 - DevOps tool (Jenkins, GitLab, Jira, etc.) → `playbooks/archetypes/devops-tools.md`
 - API-only target (Swagger, GraphQL, JSON) → `playbooks/archetypes/api-only-target.md`
 
+### 0a. Difficulty triage (hard/insane → raise the bar)
+If the target is **hard or insane** (benchmark registry, or your own read),
+load `knowledge-base/checklists/hard-box-playbook.md` FIRST. It sets the
+enumeration **depth floor** (all 65535 TCP ports, UDP, every vhost, every
+open-source app source-dived, auth'd re-enum after first creds) and the
+**chain-depth expectation** (3–5+ stages). On hard boxes the failure mode is
+under-enumeration: 3 falsifications do NOT justify stopping.
+
+### 0a-pivot. Assume the network is bigger than the foothold
+The moment you get a shell or valid creds, check for more network:
+`ip a` / `arp -a` / `route` / `/etc/hosts` / internal-only listening ports
+(Windows: `ipconfig /all`, `route print`, `netstat -ano`). If a second
+host/subnet/internal service appears → `playbooks/pivoting-and-tunneling.md`
+(ligolo-ng preferred, then chisel/SSH/sshuttle) and
+`playbooks/archetypes/multi-host-pivot.md`. Never conclude a box is done or
+blocked while an unexplored internal segment is reachable.
+
+### 0a-skills. Expert-prior skills (invoke via the Skill tool)
+Installed ClawHub skills carry deep techniques base models miss. `context-broker.sh`
+surfaces the relevant ones per situation. Reach for them when the box needs depth
+our playbooks don't fully cover — especially **custom-binary exploitation**
+(`stack-overflow-and-rop`, `heap-exploitation`, `format-string-exploitation`,
+`binary-protection-bypass`, `kernel-exploitation`), **service RCE**
+(`unauthorized-access-common-services` — Redis/PHP-FPM/Ghostcat/H2), web
+(`sqli-sql-injection`, `authbypass-authentication-flaws`, `xxe-xml-external-entity`,
+`jwt-oauth-token-attacks`), Windows/Linux privesc & lateral, `ntlm-relay-coercion`,
+`tunneling-and-pivoting`, and `reverse-shell-techniques`.
+
 ### 0b. MANDATORY helper scripts
 - `scripts/timebox.sh` — wrap **every** brute-force/dir-bust command. Default 90s budget for hydra.
+- `scripts/deep-recon.sh` — runs the full enumeration **depth floor** automatically (all-ports+UDP+vhost+CVE+anon checks), timeboxed & idempotent → `recon-summary.md`. Use on any hard box so you don't under-enumerate.
+- `scripts/ad-auto.sh` — one-shot AD sweep (RID-brute, AS-REP, Kerberoast, BloodHound, `certipy find`) → ranked `ad-findings.md`. Use the moment a target is AD.
+- `scripts/verify.sh` — ground a claim before marking it confirmed: `cred`/`host`/`flag`. Use its output as `--evidence`. Stops hallucinated creds/shells.
 - `scripts/source-dive.sh` — if the target runs an open-source app and seems to require auth, RUN THIS before brute force. The auth bypass is in the source.
 - `scripts/walkthrough-search.sh` — for retired/public boxes, gives technique fingerprints (NO spoilers).
 - `scripts/new-target.sh` — ALWAYS run first to create `reports/<target>/` structure.

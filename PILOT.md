@@ -101,6 +101,64 @@ target model, and pull the next hypothesis from the bank.
 
 ---
 
+## Hard targets, pivoting, and Active Directory
+
+These three rules are what turn the Easy-box loop into a Hard-box loop.
+They are not optional on hard/insane targets.
+
+**Hard / insane depth floor.** On a hard or insane box the failure mode is
+*under*-enumeration, not over-enumeration: declaring "stuck" before the
+hidden vector (a vhost, an obscure port, a param, a source bug, an internal
+host) was ever reached, then tripping stop-gate with only 3 falsifications.
+Before any hard-box blocker is real, complete the depth floor in
+`knowledge-base/checklists/hard-box-playbook.md` §2 (all 65535 TCP + UDP top
+ports, every vhost, every open-source app source-dived, auth'd re-enum after
+first creds). One command runs most of it for you —
+`bash scripts/deep-recon.sh <target> [hostname]` executes the full floor
+(timeboxed, idempotent) and writes a ranked `recon-summary.md` with the top
+next actions, so a weak model reads results instead of remembering the list.
+Then chain to depth 3–5+ — a confirmed foothold is stage 1 of N, not the
+finish line. Three falsifications alone never justify stopping on hard.
+
+**Always assume the network is bigger than the foothold.** The moment you
+land a shell or valid creds on any host — before privilege escalation —
+check for more network behind it: `ip -brief a` / `ip route`, `arp -a`,
+`cat /etc/hosts /etc/resolv.conf`, `ss -tlnp` for loopback-only services, and
+`~/.ssh/known_hosts` (or `ipconfig /all` / `route print` / `netstat -ano` on
+Windows). If you find a second NIC, a private route you cannot reach from
+Kali, an internal-only service, or configs/creds naming hosts you never
+scanned, the box is multi-host and the flag is likely on an internal segment
+— stop and consult `playbooks/pivoting-and-tunneling.md` to stand up a tunnel
+(prefer ligolo-ng, then chisel/SSH/sshuttle) before proceeding. Record each
+internal host as a new hypothesis, mark **PIVOTING REQUIRED** in
+`target-model.md`, reuse foothold credentials against the next host first,
+and treat every discovered host as a fresh target enumerated through the
+tunnel. Never conclude a box is complete or blocked while an unexplored
+internal segment remains reachable.
+
+**Active Directory is a workflow, not a guess.** Identify whether the target
+is AD as early as the first scan: treat open 88/389/445/464/3268/5985,
+Windows banners, or NTLM-in-HTTP as an AD signal and pivot immediately to the
+AD workflow rather than continuing generic host enumeration. The moment AD is
+confirmed, open `playbooks/runbooks/ad-decision-runbook.md` and start at
+STATE 0 to classify what you currently hold (no creds, low-priv creds, local
+admin, or a confirmed path to DA), then follow that single branch to its next
+command. Re-run STATE 0 after every credential gain — new creds usually move
+you between states. Let the runbook route you into the deep playbooks
+(`ad-foothold-to-domain-admin.md`, `ad-rbcd-privesc.md`,
+`adcs-and-shadow-creds.md`), the ADCS reference
+(`knowledge-base/mitre-attack/techniques/adcs-esc-deep.md`), and the
+coercion/relay checklist (`knowledge-base/checklists/ad-coercion-and-relay.md`).
+Always run the cheap early wins first — one command does the whole sweep:
+`bash scripts/ad-auto.sh --dc <ip> --domain <dom> [--user <u> --pass <p>]`
+runs the unauth+authed enumeration (RID-brute, AS-REP, Kerberoast, BloodHound,
+`certipy find -vulnerable`) and writes a priority-ranked `ad-findings.md`
+mapped to the runbook states — so a weak-prior model reads findings instead
+of remembering the tree. Record every state transition and the exact edge or
+ESC that unlocked Domain Admin.
+
+---
+
 ## Stop conditions (only these — anything else, keep going)
 
 A pentest is done when **one** is true:
@@ -130,6 +188,29 @@ bash scripts/stop-gate.sh <target> --why
 "It's getting hard" is not a stop condition. "I think we covered the
 basics" is not a stop condition. "There's a CAPTCHA" is not — by itself —
 a stop condition either; it's a trigger for the R15 bypass checklist.
+
+### Log the result — MANDATORY, every engagement (this is the benchmark)
+
+The instant `stop-gate.sh` passes (flag captured, blocker documented, or
+awaiting-human), before you consider the engagement closed, record the run
+so the thesis has data. This is not optional and applies whether you won or
+not:
+
+1. Read your own usage from the **`session_status`** tool (total tokens,
+   input/output split, cost). Bash cannot see this — you must fetch it.
+2. Run:
+   ```bash
+   bash benchmark/bench.sh finish <box> \
+       --tokens <total> --tokens-in <in> --tokens-out <out> \
+       --cost <usd> --notes "<one-line chain or blocker>"
+   ```
+   (If the engagement was started with `bench.sh start`, `<box>` is that
+   name; otherwise pass `--slug <target>`.)
+
+This freezes timing, extracts flags + time-to-each-flag + hypothesis stats +
+chain depth automatically, writes a machine row to `benchmark/results/`, and
+appends a sanitized row to `benchmark/RESULTS-LOG.md`. A "failed" or
+"blocker_documented" run is a valid, required data point — log it too.
 
 ---
 

@@ -19,6 +19,12 @@ hash / robots.txt / package.json). Match it to one of these:
 | [`linux-snmp-host.md`](linux-snmp-host.md) | UDP 161 open (SNMP), Linux host |
 | [`devops-tools.md`](devops-tools.md) | Jenkins, GitLab, Gitea, Jira, Confluence, TeamCity, Argo |
 | [`api-only-target.md`](api-only-target.md) | JSON-only responses, Swagger/OpenAPI exposed, no HTML UI |
+| [`multi-host-pivot.md`](multi-host-pivot.md) | Second NIC/subnet, internal-only service, configs naming hosts you can't reach — the box is bigger than the foothold |
+
+> **Hard / insane target?** Archetypes still apply, but first read
+> [`knowledge-base/checklists/hard-box-playbook.md`](../../knowledge-base/checklists/hard-box-playbook.md):
+> it sets the enumeration depth floor and chain-depth expectation that
+> separate a real Hard blocker from stopping one stage too early.
 
 ## Workflow
 

@@ -86,6 +86,8 @@ case "$ACTION" in
     WAIVE_CHAIN="no"
     WAIVE_PIVOT="no"
     WAIVE_REASON=""
+    WAIVE_EV="no"
+    WAIVE_EV_REASON=""
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --falsifier)    FALSIFIER="$2"; shift 2;;
@@ -95,13 +97,15 @@ case "$ACTION" in
         --source)       SOURCE="$2"; shift 2;;
         --waive-chain)  WAIVE_CHAIN="yes"; WAIVE_REASON="$2"; shift 2;;
         --waive-pivot)  WAIVE_PIVOT="yes"; WAIVE_REASON="$2"; shift 2;;
+        --waive-ev)     WAIVE_EV="yes"; WAIVE_EV_REASON="$2"; shift 2;;
         *) shift;;
       esac
     done
-    py - "$BANK" "$H" "$FALSIFIER" "$PHASE" "$COST" "$IMPACT" "$SOURCE" "$WAIVE_CHAIN" "$WAIVE_PIVOT" "$WAIVE_REASON" "$WS" <<PY
+    py - "$BANK" "$H" "$FALSIFIER" "$PHASE" "$COST" "$IMPACT" "$SOURCE" "$WAIVE_CHAIN" "$WAIVE_PIVOT" "$WAIVE_REASON" "$WS" "$WAIVE_EV" "$WAIVE_EV_REASON" <<PY
 $PYHEADER
 H, FALS, PHASE, COST, IMPACT, SRC = sys.argv[2:8]
 WAIVE_CHAIN, WAIVE_PIVOT, WAIVE_REASON, WS = sys.argv[8:12]
+WAIVE_EV, WAIVE_EV_REASON = sys.argv[12], sys.argv[13]
 d = load()
 
 # ===== HARD ENFORCEMENT: CHAIN RULE =====
@@ -152,6 +156,74 @@ if len(recent_fals) >= 3 and WAIVE_PIVOT != "yes":
         print("   To override (rare — e.g. probing a totally new vector):")
         print("     bash scripts/hypotheses.sh add ... --waive-pivot \"<reason>\"")
         sys.exit(1)
+
+# ===== HARD ENFORCEMENT: EV / ALTITUDE GUARD =====
+# On easy/medium boxes, a hand-rolled kernel / memory-corruption exploit is
+# almost never the intended root path — it is the single most expensive,
+# lowest-EV vector. Refuse to open one while the cheap privesc checklist is
+# not yet exhausted. This does NOT cap thoroughness: it forces the RIGHT
+# order (enum + sudo/SUID/cron/caps/creds first), then allows the expensive
+# vector via --waive-ev once the cheap space is honestly falsified.
+def _difficulty(dd, ws):
+    tgt = dd.get("target", "")
+    slug = ''.join(c for c in tgt.replace('/', '-') if c.isalnum() or c in '._-')
+    bench = os.path.join(ws, "reports", slug, ".bench.json")
+    box = None
+    if os.path.exists(bench):
+        try:
+            bj = json.load(open(bench))
+            if bj.get("difficulty"):
+                return str(bj["difficulty"]).lower(), slug
+            box = bj.get("box")
+        except Exception:
+            pass
+    # fall back to boxes.json by box name / slug
+    reg = os.path.join(ws, "benchmark", "boxes.json")
+    try:
+        boxes = json.load(open(reg)).get("boxes", {})
+        for k, v in boxes.items():
+            if k == box or k == slug:
+                return str(v.get("difficulty", "")).lower(), slug
+    except Exception:
+        pass
+    return "", slug
+
+_EXPENSIVE_KW = [
+    "kernel", "dirtypipe", "dirty pipe", "dirtycow", "dirty cow", "af_alg",
+    "use-after-free", "use after free", "uaf", "heap", "page-cache", "page cache",
+    "rop chain", "ret2", "type confusion", "memory corruption", "buffer overflow",
+    "race condition", "double free", "oob write", "out-of-bounds",
+]
+_diff, _slug = _difficulty(d, WS)
+_htxt = (H or "").lower()
+_is_expensive = any(k in _htxt for k in _EXPENSIVE_KW) or (
+    COST.upper() == "HIGH" and (PHASE or "").lower() == "privesc")
+_cheap_open = [i for i in d["items"]
+               if i.get("status") == "open"
+               and i.get("cost", "MED").upper() in ("LOW", "MED")
+               and (i.get("phase", "") or "").lower() in ("enum", "privesc")]
+import glob as _glob
+_enum_done = bool(_glob.glob(os.path.join(WS, "reports", _slug, "loot", "postfoothold*")))
+if (_is_expensive and _diff in ("easy", "medium")
+        and (not _enum_done or _cheap_open) and WAIVE_EV != "yes"):
+    print("❌ EV GUARD BLOCK — expensive/kernel vector on an "
+          f"{_diff or 'easy'} box while cheap privesc is not exhausted.")
+    print("")
+    print("   On easy/medium boxes the intended root is almost never a")
+    print("   hand-rolled kernel/memory-corruption exploit. Do the cheap,")
+    print("   high-EV work FIRST (this is what a good pentester does):")
+    print("")
+    if not _enum_done:
+        print("     1) Run the local enum sweep (one shot, one artefact):")
+        print(f"          bash scripts/postfoothold.sh   # save to reports/{_slug}/loot/")
+    if _cheap_open:
+        print("     2) Test the cheap privesc hypotheses still open:")
+        for it in _cheap_open[:6]:
+            print(f"          {it['id']} ({it.get('phase','?')}/{it.get('cost','?')}): {it['h'][:70]}")
+    print("")
+    print("   Only after the cheap space is HONESTLY falsified:")
+    print(f'     bash scripts/hypotheses.sh add "{H[:50]}..." ... --waive-ev "<what you ruled out>"')
+    sys.exit(1)
 
 hid = next_id(d)
 item = {
@@ -264,20 +336,23 @@ PY
     EVIDENCE=""
     WAIVE_EVIDENCE="no"
     WAIVE_EVIDENCE_REASON=""
+    FOOTHOLD="no"
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --evidence)         EVIDENCE="$2"; shift 2;;
         --waive-evidence)   WAIVE_EVIDENCE="yes"; WAIVE_EVIDENCE_REASON="$2"; shift 2;;
+        --foothold)         FOOTHOLD="yes"; shift;;
         *) shift;;
       esac
     done
     if [[ -z "$HID" || -z "$VERDICT" ]]; then
-      echo "Usage: hypotheses.sh result <id> confirmed|falsified|inconclusive \"<note>\" [--evidence <path>]"
+      echo "Usage: hypotheses.sh result <id> confirmed|falsified|inconclusive \"<note>\" [--evidence <path>] [--foothold]"
       exit 2
     fi
-    py - "$BANK" "$HID" "$VERDICT" "$NOTE" "$EVIDENCE" "$WAIVE_EVIDENCE" "$WAIVE_EVIDENCE_REASON" "$WS" <<PY
+    py - "$BANK" "$HID" "$VERDICT" "$NOTE" "$EVIDENCE" "$WAIVE_EVIDENCE" "$WAIVE_EVIDENCE_REASON" "$WS" "$FOOTHOLD" <<PY
 $PYHEADER
 HID, V, NOTE, EVIDENCE, WAIVE_EV, WAIVE_REASON, WS_DIR = sys.argv[2:9]
+FOOTHOLD = sys.argv[9] if len(sys.argv) > 9 else "no"
 d = load()
 it = next((i for i in d["items"] if i["id"]==HID), None)
 if not it: print(f"❌ {HID} not found."); sys.exit(1)
@@ -340,7 +415,62 @@ save(d)
 print(f"✅ {HID} → {V}")
 if V == "confirmed" and it.get("evidence"):
     print(f"   evidence: {it['evidence']}")
-if V == "confirmed":
+
+# ===== FOOTHOLD REFLEX: auto-seed the privesc checklist =====
+# When a hypothesis that yields code exec / a shell is confirmed, the very
+# next move on any box is systematic LOCAL enumeration + the cheap privesc
+# checklist — NOT a clever exploit. Seed those hypotheses automatically so
+# the bank can never again be "confirmed foothold, empty privesc" (the
+# failure that cost ~8 USD on cohort.htb). Pairs with scripts/postfoothold.sh.
+_FOOT_KW = ["rce", "shell", "foothold", "code exec", "command exec", "webshell",
+            "reverse shell", "terminal", "pty", "uid=", "pre-auth", "upload",
+            "arbitrary command", "exec as"]
+_is_foothold = (FOOTHOLD == "yes") or (
+    V == "confirmed"
+    and (it.get("phase", "") or "").lower() in ("exploit", "enum", "lateral")
+    and any(k in (it.get("h", "") + " " + (NOTE or "")).lower() for k in _FOOT_KW))
+if V == "confirmed" and _is_foothold and not d.get("privesc_seeded"):
+    tgt = d.get("target", "")
+    slug = ''.join(c for c in tgt.replace('/', '-') if c.isalnum() or c in '._-')
+    ART = f"reports/{slug}/loot/postfoothold*.txt"
+    CHECKLIST = [
+        ("sudo -l permite comando como root (GTFOBins) -> root", "LOW", "HIGH",
+         f"grep -iEA3 'SUDO' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Binario SUID/SGID abusavel (GTFOBins) -> root", "LOW", "HIGH",
+         f"grep -iEA3 'SUID' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Credenciais/keys legiveis reutilizadas (.env/config/history/SSH) -> root/lateral", "LOW", "HIGH",
+         f"grep -iEA3 'CREDS|SSH|ENV|PASSWORD' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Cron/systemd-timer/script corre como root e e gravavel -> root", "MED", "HIGH",
+         f"grep -iEA3 'CRON|TIMER' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Capabilities (cap_setuid/cap_dac) num binario -> root", "LOW", "MED",
+         f"grep -iEA3 'CAPABILIT' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Servico como root com binario/dir gravavel ou exploit local -> root", "MED", "MED",
+         f"grep -iEA3 'ROOT PROC|LISTENING|PROCESSES' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Reutilizacao da password do foothold para su/outro user -> escalada", "LOW", "MED",
+         "echo 'try: su root / su <user> with harvested creds'"),
+    ]
+    seeded = []
+    for htext, cost, impact, fals in CHECKLIST:
+        nid = next_id(d)
+        d["items"].append({
+            "id": nid, "h": htext, "falsifier": fals, "phase": "privesc",
+            "cost": cost, "impact": impact, "source": "chain", "status": "open",
+            "result": None, "note": "", "created": int(time.time()),
+            "tested_at": None, "chains_to": []
+        })
+        it.setdefault("chains_to", []).append(nid)
+        seeded.append(nid)
+    d["privesc_seeded"] = True
+    save(d)
+    print()
+    print(f"🌱 FOOTHOLD REFLEX — seeded {len(seeded)} privesc hypotheses ({seeded[0]}..{seeded[-1]}).")
+    print("   First move (one shot, one artefact):")
+    print("      bash scripts/postfoothold.sh --emit   # then run on target, save to loot/")
+    print("   Then work them cheapest-first:  bash scripts/hypotheses.sh list --rank --phase privesc")
+
+if V == "confirmed" and d.get("privesc_seeded") and _is_foothold:
+    pass  # chain already satisfied by seeded links
+elif V == "confirmed":
     print()
     print("⚠  CHAIN RULE: a confirmed hypothesis MUST generate a new")
     print("    hypothesis at the next kill-chain stage. Do it now:")

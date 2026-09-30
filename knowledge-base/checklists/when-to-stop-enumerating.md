@@ -4,6 +4,17 @@ Use this when the model keeps collecting more data even though a real attack pat
 
 This file exists because many weaker models fail by over-enumerating after they already have enough to move.
 
+> **Difficulty cuts both ways.** This file targets *over*-enumeration
+> (having a path but still scanning). On **hard / insane** boxes the
+> dominant failure is the opposite — *under*-enumeration: declaring
+> "stuck" before the hidden vector (a vhost, an obscure port, a param, a
+> source bug, an internal host) was ever reached, then tripping stop-gate
+> C1 with only 3 falsifications. If the target is hard/insane and you have
+> **no** actionable path yet, do NOT stop — switch to the depth floor in
+> `knowledge-base/checklists/hard-box-playbook.md` §2 before treating any
+> blocker as real. Stop-and-exploit below applies once you *have* a path;
+> the depth floor applies when you don't.
+
 ---
 
 ## Core Rule

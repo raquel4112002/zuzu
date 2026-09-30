@@ -47,6 +47,12 @@ header), `gobuster`/`feroxbuster`/`ffuf` (vhost + dir + param), passive
 JS bundle harvesting (`grep -oE '/api/[^"]+' index.js`), `whatweb`,
 `wafw00f`, `tlsx`, robots.txt + sitemap.xml + .well-known/.
 
+**Speed:** don't drive these serially by hand. Fire
+`scripts/recon-fast.sh` once — it runs full-port / UDP / web / CVE lanes
+**in parallel**, timeboxed, and writes `reports/<slug>/recon-summary.md`
+for you to read. Same coverage, a fraction of the wall-clock. Gaps →
+`deep-recon.sh --force`. Stamp the phase: `scripts/phase.sh recon`.
+
 **Done when:** you can list every reachable endpoint and every banner
 without re-scanning. Write it to `reports/<target>/surface.md`.
 
@@ -168,6 +174,14 @@ You do **not** mark a phase done until at least one hypothesis at the
 next phase exists in the bank. This is what "thinking like a top
 researcher" really is — the mind is always one step ahead of the hands.
 
+**Chain DEPTH scales with difficulty.** Easy boxes chain 1–2 stages;
+**hard/insane boxes chain 3–5+**. A confirmed foothold on a hard box is
+stage 1 of N, never the finish line — re-enumerate *as the new user / on
+the new host* and generate the next stage before you rest. If your bank
+shows a single confirmed hypothesis on a hard target, you are one or more
+stages short. The benchmark's `max_chain_depth` measures exactly this.
+When the target is hard/insane, load `knowledge-base/checklists/hard-box-playbook.md`.
+
 When a hypothesis is **falsified**, you don't just discard it. You ask:
 *what does its falsification tell me?* (E.g., "no IDOR on /users/N"
 might mean strict auth — but maybe the auth check is in middleware that
@@ -175,6 +189,25 @@ doesn't fire on `/users/N/edit`, or on the WebSocket equivalent.)
 
 **The pivot rule:** if 3 high-EV hypotheses in a row are falsified, you
 have the wrong target model. Go back to Layer 2 and update it.
+
+**The foothold reflex (do NOT skip).** The moment you land a shell, the
+next move is *systematic local enumeration*, not a clever exploit. Run
+`scripts/postfoothold.sh` once (sudo/SUID/cron/caps/creds/services/
+writable), save to `loot/`, then confirm the foothold with
+`hypotheses.sh result <id> confirmed --foothold` — it auto-seeds the
+ranked privesc checklist. Work it cheapest-first. Skipping this is what
+turned an easy box into a 2-hour, 13-USD hole.
+
+**EV / altitude discipline.** Rank by impact ÷ cost, and weight cost by
+box difficulty. On easy/medium boxes a hand-rolled kernel /
+memory-corruption exploit is the lowest-EV move on the board — the
+intended path is nearly always sudo, SUID, cron, a readable credential,
+a service running as root, or password reuse. Exhaust that cheap space
+*first*; `hypotheses.sh` enforces this and will block a kernel vector
+until you have. This is about **order, not depth** — you still explore
+everything until both flags are captured. "Cheaper" and "more thorough"
+are not in tension: cheap-first *is* what a good pentester does, and it
+gets to root faster.
 
 ---
 
@@ -255,6 +288,7 @@ After every meaningful step, your `reports/<target>/` should have:
 | `external-refs.md` | Anything you read externally |
 | `notes.md` | Free-form running log |
 | `ENGAGEMENT.md` | Status card (see `new-target.sh`) |
+| `.phases.json` (via `scripts/phase.sh`) | Stamp each phase change (recon→foothold→privesc→root) |
 
 If your reasoning is real, these files grow. If they don't, you're
 running tools without thinking. The `orchestrator.sh think` command

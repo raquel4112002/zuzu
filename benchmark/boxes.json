@@ -1,0 +1,47 @@
+{
+  "_comment": "Benchmark box registry. Public HTB metadata only \u2014 NO flags, NO spoilers, NO live IPs (HTB rotates them per spawn; pass --ip at 'bench start' time). Difficulty/os are HTB's own labels. Add your Hard/Insane test set here. 'archetype' is a hint that maps to playbooks/archetypes/.",
+  "boxes": {
+    "twomillion": {
+      "platform": "hackthebox",
+      "difficulty": "easy",
+      "os": "linux",
+      "archetype": "webapp-with-login",
+      "notes": "Invite-code JS -> API -> command injection -> CVE. See learnings/2million.md."
+    },
+    "facts": {
+      "platform": "hackthebox",
+      "difficulty": "easy",
+      "os": "linux",
+      "archetype": "webapp-with-login",
+      "notes": "Camaleon CMS + MinIO. CAPTCHA gate motivated R15. See papers/the-nest.md 6.1."
+    },
+    "wingdata": {
+      "platform": "hackthebox",
+      "difficulty": "easy",
+      "os": "linux",
+      "archetype": "custom-ftp-or-file-server",
+      "notes": "Wing FTP 7.4.3 -> CVE-2025-47812 + CVE-2025-4517. Runbook: playbooks/runbooks/wing-ftp-rooted.md."
+    },
+    "fireflow": {
+      "platform": "hackthebox",
+      "difficulty": "medium",
+      "os": "linux",
+      "archetype": "webapp-to-kubernetes",
+      "notes": "Langflow 1.8.2 CVE-2026-33017 unauth RCE -> creds reuse -> MCP registry JWT alg:none -> kubelet exec -> privileged node. Skills: langflow-rce, kubelet-exec-via-sa-token."
+    },
+    "paperwork": {
+      "platform": "hackthebox",
+      "difficulty": "easy",
+      "os": "linux",
+      "archetype": "network-printer-lpd-pjl",
+      "notes": "LPD J-line cmd inj -> jetdirect PJL FS traversal -> authorized_keys SSH -> paperwork-daemon mgmt.sock SCM_RIGHTS fd leak -> ADMIN_PASSWORD == root pw. Chain depth 5."
+    },
+    "_hard_set_template": {
+      "platform": "hackthebox",
+      "difficulty": "hard",
+      "os": "windows",
+      "archetype": "ad-windows-target",
+      "notes": "COPY this row, rename the key to the real box slug, edit fields. Suggested axes to cover in a Hard set: (1) full AD chain, (2) multi-host pivot, (3) chained web->foothold->privesc, (4) non-AD Linux hard."
+    }
+  }
+}

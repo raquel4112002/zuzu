@@ -231,6 +231,31 @@ weak token, source-dive reveals the gem). The 3-falsified-bypass
 requirement is mandatory — without it, this rule is a quitter's
 shortcut. R3 (hypotheses are first-class) still applies.
 
+### R16. Foothold discipline — cheap, thorough, and in the right order
+
+The failure that cost ~13 USD and 193 requests on an *easy* box: got a
+shell, then skipped local enumeration and chased a kernel exploit for
+two hours. Never again. The second you have code exec:
+
+1. **Enumerate LOCALLY, in one shot.** Run `scripts/postfoothold.sh`
+   (sudo/SUID/cron/caps/creds/services/writable) and save it to
+   `loot/`. One artefact. Do this **before** generating any root
+   hypothesis. An empty `loot/` after a foothold is an R2 violation.
+2. **Confirm the foothold in the bank** (`hypotheses.sh result <id>
+   confirmed --foothold`) — it auto-seeds the ranked privesc checklist.
+   Work it **cheapest-first** (`list --rank --phase privesc`).
+3. **EV / altitude.** On easy/medium boxes the root is almost never a
+   hand-rolled kernel / memory-corruption exploit. `hypotheses.sh add`
+   will **block** such a vector until the cheap checklist is honestly
+   falsified (override: `--waive-ev "<what you ruled out>"`). This is
+   ordering, not a cap — you still explore everything, cheap first.
+4. **Never one request per command.** Batch with
+   `scripts/shell-batch.sh --wrap`, or make the shell persistent with
+   `--persist`. Interactive shells are only for genuinely stateful work.
+
+The bar is unchanged: **both flags, full exploration, like a real
+pentester** — just without burning hours and money on the wrong wall.
+
 ---
 
 ## 4. Quick command reference (commit these to muscle memory)
@@ -238,6 +263,15 @@ shortcut. R3 (hypotheses are first-class) still applies.
 ```bash
 # Engage / resume — one command
 bash scripts/pentest.sh <target> [hostname]
+
+# Recon — FAST parallel first pass (same coverage, fraction of wall-time).
+# Reads reports/<slug>/recon-summary.md when done. Gap? deep-recon --force.
+bash scripts/recon-fast.sh [<target>] [hostname]
+bash scripts/deep-recon.sh --force        # exhaustive serial fallback
+
+# Phase timing — stamp transitions so the benchmark shows where time goes.
+bash scripts/phase.sh recon|foothold|privesc|root|lateral
+bash scripts/phase.sh timeline
 
 # Reasoning prompt (forces structured thinking, not canned suggestions)
 bash scripts/think.sh
@@ -259,6 +293,15 @@ bash scripts/source-dive.sh <repo> [tag]
 
 # Stuck on a familiar pattern? Canned suggestions exist:
 bash scripts/orchestrator.sh think
+
+# JUST GOT A SHELL? Do this FIRST — one shot, one artefact, then privesc:
+bash scripts/postfoothold.sh --emit          # enum payload -> run on target -> loot/
+bash scripts/postfoothold.sh --run 'ssh u@t sh'   # or auto-capture via a runner
+# (confirming the foothold H auto-seeds the privesc checklist into the bank)
+
+# Never pay one request per command — batch, or make the shell persistent:
+printf '%s\n' 'id' 'sudo -n -l' 'ls -la /opt' | bash scripts/shell-batch.sh --wrap
+bash scripts/shell-batch.sh --persist        # FIFO-backed persistent shell
 
 # Done? Deterministic check:
 bash scripts/stop-gate.sh <target> --why

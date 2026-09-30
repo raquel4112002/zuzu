@@ -84,7 +84,7 @@ If the gate already tripped, also read:
 | `scripts/source-dive.sh <repo> [tag]` | Open-source app + auth wall? **Source-dive before brute-force.** |
 | `scripts/walkthrough-search.sh <name>` | Retired HTB box? Get HINTS (no spoilers). |
 | `scripts/new-target.sh <ip>` | Standalone folder creation (pentest.sh / zero.sh call it). |
-| `scripts/context-broker.sh <topic>` | Don't know which doc to read? Ask the broker. |
+| `scripts/context-broker.sh` | Auto-detects your situation from engagement state → the minimal files to read. Add `--print` to dump their CONTENT inline (byte-capped), or pass a topic (`ad`, `pivot`, `hard`, `web`…). |
 
 ---
 
@@ -103,12 +103,18 @@ If the gate already tripped, also read:
 
 ## After you finish
 
-1. Write `reports/<target>/report.md` from `templates/attack-report-template.md`.
-2. Update `ENGAGEMENT.md` status to `🟢 done` (or `🔴 blocked` with the documented blocker).
-3. Add new CVEs to `knowledge-base/cve-to-exploit-cache.md`.
-4. If the target was distinctive, **author a runbook** in
+1. **Log the run (MANDATORY — benchmark data).** Read tokens/cost from the
+   `session_status` tool, then:
+   ```bash
+   bash benchmark/bench.sh finish <box> --tokens <N> --tokens-in <N> --tokens-out <N> --cost <USD> --notes "<chain/blocker>"
+   ```
+   Log wins AND losses — a failed run is a required data point.
+2. Write `reports/<target>/report.md` from `templates/attack-report-template.md`.
+3. Update `ENGAGEMENT.md` status to `🟢 done` (or `🔴 blocked` with the documented blocker).
+4. Add new CVEs to `knowledge-base/cve-to-exploit-cache.md`.
+5. If the target was distinctive, **author a runbook** in
    `playbooks/runbooks/<name>.md` so the next operator (or LLM) goes faster.
-5. Drop a sanitised lesson into `learnings/` if you discovered something
+6. Drop a sanitised lesson into `learnings/` if you discovered something
    reusable.
 
 ---
