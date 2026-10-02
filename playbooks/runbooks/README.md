@@ -19,6 +19,7 @@ and archetypes in three ways:
 | `linux-foothold-to-root.md` | You have ANY Linux shell as a non-root user. Standard privesc enumeration + 7 most common escalation paths. |
 | `web-recon-to-foothold.md` | You have a HTTP target with no obvious framework hits. Linear web recon checklist. |
 | `cracked-cred-pivot.md` | You cracked a password. How to fan out across SSH/SMB/WinRM/web/FTP/etc. systematically. |
+| `layover-chain-runbook.md` | RDP jumpbox + open WiFi + Craft CMS 5.x (Layover archetype): sniff → CVE-2026-28695 patch-bypass RCE → key decrypt → SSH pivot → CVE-2026-34990 CUPS LPE. |
 
 ## How to write a new runbook
 
