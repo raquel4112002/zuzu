@@ -20,7 +20,8 @@ WS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(WS, "benchmark", "results")
 
 OUTCOME_RANK = {
-    "solved_full": 4,
+    "solved_full": 5,
+    "solved_undisciplined": 4,   # got both flags, but bypassed the reasoning loop
     "partial_user": 3,
     "blocker_documented": 2,
     "awaiting_human": 1,
@@ -28,6 +29,7 @@ OUTCOME_RANK = {
 }
 OUTCOME_CELL = {
     "solved_full": "✅",
+    "solved_undisciplined": "✅⚠",
     "partial_user": "🟡",
     "blocker_documented": "📋",
     "awaiting_human": "⏸️",
@@ -90,18 +92,21 @@ def render_md(rows):
 
     # Per-model solve rate
     out.write("\n## Solve rate by model\n\n")
-    out.write("| Model | Runs | Solved | User+ | Any progress | Median hyps | Median chain |\n")
-    out.write("|-------|------|--------|-------|--------------|-------------|-------------|\n")
+    # "Solved" = clean solve (both flags + disciplined). "Both flags" also
+    # counts solved_undisciplined (got the flags but bypassed the loop).
+    out.write("| Model | Runs | Solved(clean) | Both flags | User+ | Any progress | Median hyps | Median chain |\n")
+    out.write("|-------|------|---------------|------------|-------|--------------|-------------|-------------|\n")
     for m in models:
         mrows = [r for r in rows if r.get("model") == m]
         n = len(mrows)
         solved = sum(1 for r in mrows if r["outcome"] == "solved_full")
+        bothflags = sum(1 for r in mrows if r["outcome"] in ("solved_full", "solved_undisciplined"))
         useru = sum(1 for r in mrows if r["user_flag"])
         prog = sum(1 for r in mrows if OUTCOME_RANK.get(r["outcome"], 0) >= 2)
         hyps = sorted(r["hypotheses_total"] for r in mrows)
         chains = sorted(r["max_chain_depth"] for r in mrows)
         med = lambda xs: xs[len(xs) // 2] if xs else 0
-        out.write(f"| {m or '?'} | {n} | {solved} | {useru} | {prog} | {med(hyps)} | {med(chains)} |\n")
+        out.write(f"| {m or '?'} | {n} | {solved} | {bothflags} | {useru} | {prog} | {med(hyps)} | {med(chains)} |\n")
 
     out.write(f"\n_{len(rows)} total runs across {len(boxes)} boxes, {len(models)} models._\n")
     return out.getvalue()

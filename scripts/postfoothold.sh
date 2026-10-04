@@ -62,7 +62,12 @@ echo "===== WRITABLE (root-owned files writable by us, world-writable dirs) ====
 T 20 "find / -type f -perm -0002 -not -path \"/proc/*\" -not -path \"/sys/*\" 2>/dev/null | head -30"
 T 15 "find /etc /opt /srv /usr/local -writable -not -path \"/proc/*\" 2>/dev/null | head -30"
 echo "===== INTERESTING HOMES / OPT / RECENT ====="; ls -la /home /opt /srv /root 2>/dev/null; T 10 "find /home /opt /srv -maxdepth 3 -mmin -240 -type f 2>/dev/null | head -20"
-echo "===== CONTAINER? ====="; ls -la /.dockerenv 2>/dev/null; cat /proc/1/cgroup 2>/dev/null | head -3
+echo "===== FLAG HUNT (user.txt / root.txt = THE two objectives) ====="; T 25 "find / -name user.txt -o -name root.txt 2>/dev/null | grep -vE \"/proc/|/sys/\" | head"
+echo "===== USER MAP (real login users + homes to pivot to) ====="; grep -E "sh$" /etc/passwd 2>/dev/null | grep -vE "nologin|false" | head -20; ls -la /home 2>/dev/null
+echo "===== CONTAINER / NAMESPACES / BIND-MOUNTS (escape surface) ====="; ls -la /.dockerenv 2>/dev/null; cat /proc/1/cgroup 2>/dev/null | head -3
+echo "-- host/bind mounts (writable paths a root host proc may read = escape) --"; T 10 "grep -vE \"proc|sysfs|cgroup|tmpfs|devpts|mqueue|/shm\" /proc/mounts 2>/dev/null | head -20"
+echo "-- host unix sockets (shared netns) --"; T 8 "grep -iE \"sock|docker|containerd|/run/\" /proc/net/unix 2>/dev/null | head -15"
+echo "-- loopback listeners (HOST services if netns shared -> pivot/escape) --"; (ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null) | grep -E "127.0.0.1|::1" | head -20
 echo "===== DONE ====="
 '
 EOF

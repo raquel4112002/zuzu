@@ -29,6 +29,10 @@ MODE="${1:---wrap}"
 
 case "$MODE" in
   --wrap|"")
+    # Optional per-command output cap (R18 context hygiene): bound how much each
+    # command returns into context. Full work still runs on the target.
+    CAP=0
+    if [[ "${2:-}" == "--cap" ]]; then CAP="${3:-8000}"; fi
     # Read commands from stdin, emit a single sh -c payload.
     cmds=()
     while IFS= read -r line; do
@@ -47,7 +51,12 @@ case "$MODE" in
       i=$((i+1))
       # escape single quotes for embedding inside the single-quoted sh -c
       esc=${c//\'/\'\\\'\'}
-      payload+="echo \"===[ $i ] \$ ${esc//\"/\\\"} ===\"; ${esc}; "
+      if [[ "$CAP" -gt 0 ]]; then
+        # Cap each command's output; full output stays on the target.
+        payload+="echo \"===[ $i ] \$ ${esc//\"/\\\"} ===\"; { ${esc}; } 2>&1 | head -c ${CAP}; echo; "
+      else
+        payload+="echo \"===[ $i ] \$ ${esc//\"/\\\"} ===\"; ${esc}; "
+      fi
     done
     payload+="echo ===[ END ]==='"
     printf '%s\n' "$payload"
@@ -60,13 +69,19 @@ case "$MODE" in
     OUT="${FIFO}.o"
     cat <<EOF
 # ── Persistent-shell bootstrap (run ONCE on the target, in one exec) ──
+# A bare 'sh -i <FIFO' DIES after the first write: when the writer closes the
+# FIFO the reader hits EOF and exits. 'tail -f' holds the FIFO open forever and
+# streams every write into one long-lived shell, so cwd/env/vars persist.
 rm -f $FIFO $OUT; mkfifo $FIFO
-( setsid sh -i <$FIFO >$OUT 2>&1 & ) 2>/dev/null
+( setsid sh -c 'tail -f $FIFO | sh -i >$OUT 2>&1' & ) 2>/dev/null
 sleep 1; echo "[persist] shell up: write cmds to $FIFO, read output from $OUT"
 
-# ── Then, per command (each is ONE cheap write + read, state persists) ──
-#   printf '%s\n' 'cd /opt && ls -la'   > $FIFO ; sleep 1; tail -c 4000 $OUT
-#   printf '%s\n' 'export X=1; echo \$X' > $FIFO ; sleep 1; tail -c 4000 $OUT
+# ── Then, per command. Append a sentinel and poll \$OUT until it appears,
+#    instead of a fixed sleep (faster + reliable on slow/async targets): ──
+#   printf '%s\n' 'cd /opt && ls -la; echo __ZZ_DONE__' > $FIFO
+#   for i in \$(seq 1 50); do grep -q __ZZ_DONE__ $OUT && break; sleep 0.2; done; tail -c 4000 $OUT
+#
+#   printf '%s\n' 'export X=1; echo \$X; echo __ZZ_DONE__' > $FIFO ; sleep 1; tail -c 4000 $OUT
 #
 # cwd, env and variables survive between writes because it is ONE shell.
 # Batch where you can (see: bash scripts/shell-batch.sh --wrap); use this

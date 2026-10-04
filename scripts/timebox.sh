@@ -22,7 +22,7 @@
 #   gobuster/feroxbuster:   60s
 #   ffuf/wfuzz:             60s
 #   nmap (no -p-):          120s
-#   nmap (-p-):             300s
+#   nmap (-p- / full):      600s  (auto-bumped when -p- is detected)
 #   nikto/nuclei:           180s
 #   anything else:          120s
 
@@ -45,6 +45,9 @@ DEFAULT_BUDGETS=(
   "nuclei:180"
   "wpscan:180"
   "sqlmap:300"
+  "nmap:120"
+  "rustscan:180"
+  "masscan:120"
 )
 
 usage() {
@@ -82,6 +85,11 @@ else
       break
     fi
   done
+  # nmap -p- (all 65535 ports) needs far longer than the top-1000 default,
+  # or it gets SIGTERM'd mid-sweep. Bump when an auto-picked budget is used.
+  if [[ "$CMD_NAME" == "nmap" ]] && printf '%s ' "$@" | grep -qE -- '-p-|-p *0?-65535|--top-ports *([0-9]{5})'; then
+    (( BUDGET < 600 )) && BUDGET=600
+  fi
 fi
 
 [[ $# -lt 1 ]] && usage

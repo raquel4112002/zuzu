@@ -1,0 +1,68 @@
+{
+  "_comment": "Ollama Cloud per-1M-token prices. Confirmed by Raquel 2026-10-01. cacheRead billed at 'cached'; cacheWrite billed at 'input' (no separate write price for these models).",
+  "_source": "ollama.com/pricing + operator confirmation",
+  "currency": "USD",
+  "per_tokens": 1000000,
+  "models": {
+    "glm-5.3": {
+      "input": 1.49,
+      "cached": 0.26,
+      "output": 4.4
+    },
+    "glm-5.3-flash": {
+      "input": 0.15,
+      "cached": 0.03,
+      "output": 0.5
+    },
+    "kimi-k2.7-code": {
+      "input": 0.95,
+      "cached": 0.19,
+      "output": 4.0
+    },
+    "deepseek-v4.1-flash": {
+      "input": 0.3,
+      "cached": 0.006,
+      "output": 1.2
+    },
+    "gpt-oss:20b": {
+      "input": 0.07,
+      "cached": 0.035,
+      "output": 0.3
+    },
+    "gemma4": {
+      "input": 0.14,
+      "cached": 0.05,
+      "output": 0.4
+    },
+    "gemma4:31b-cloud": {
+      "input": 0.14,
+      "cached": 0.05,
+      "output": 0.4
+    },
+    "deepseek-v4-pro": {
+      "input": 1.32,
+      "cached": 0.044,
+      "output": 3.96
+    },
+    "kimi-k3": {
+      "input": 3.0,
+      "cached": 0.3,
+      "output": 15.0
+    },
+    "minimax-m3": {
+      "input": 0.6,
+      "cached": 0.12,
+      "output": 2.4
+    },
+    "minimax-m3:cloud": {
+      "input": 0.6,
+      "cached": 0.12,
+      "output": 2.4
+    },
+    "nemotron-3-super": {
+      "input": 0.015,
+      "cached": 0.015,
+      "output": 0.6
+    }
+  }
+}

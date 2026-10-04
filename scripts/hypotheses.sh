@@ -434,6 +434,8 @@ if V == "confirmed" and _is_foothold and not d.get("privesc_seeded"):
     slug = ''.join(c for c in tgt.replace('/', '-') if c.isalnum() or c in '._-')
     ART = f"reports/{slug}/loot/postfoothold*.txt"
     CHECKLIST = [
+        ("OBJETIVO 1 — localizar user.txt e mapear user real; um shell de container/service-acct NAO e USER access", "LOW", "HIGH",
+         f"grep -iEA3 'FLAG HUNT|USER MAP' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
         ("sudo -l permite comando como root (GTFOBins) -> root", "LOW", "HIGH",
          f"grep -iEA3 'SUDO' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
         ("Binario SUID/SGID abusavel (GTFOBins) -> root", "LOW", "HIGH",
@@ -448,6 +450,10 @@ if V == "confirmed" and _is_foothold and not d.get("privesc_seeded"):
          f"grep -iEA3 'ROOT PROC|LISTENING|PROCESSES' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
         ("Reutilizacao da password do foothold para su/outro user -> escalada", "LOW", "MED",
          "echo 'try: su root / su <user> with harvested creds'"),
+        ("Container foothold: bind-mount gravavel partilhado com proc root do host -> escrever payload que root consome -> escape/root", "MED", "HIGH",
+         f"grep -iEA6 'CONTAINER / NAMESPACES|host/bind mounts|host unix sockets' {ART} 2>/dev/null || echo 'run postfoothold.sh'"),
+        ("Container foothold: servico root em loopback (netns partilhado) -> REVER binario/rotas/config pela app (NAO fuzz cego) -> host RCE", "MED", "HIGH",
+         f"grep -iEA3 'loopback listeners|LISTENING' {ART} 2>/dev/null || echo 'find the service binary/source; derive routes from app context, not generic wordlists'"),
     ]
     seeded = []
     for htext, cost, impact, fals in CHECKLIST:
@@ -464,9 +470,12 @@ if V == "confirmed" and _is_foothold and not d.get("privesc_seeded"):
     save(d)
     print()
     print(f"🌱 FOOTHOLD REFLEX — seeded {len(seeded)} privesc hypotheses ({seeded[0]}..{seeded[-1]}).")
+    print("   🎯 OBJECTIVES: user.txt = USER access · root.txt = ROOT access (two distinct milestones).")
+    print("      A shell as a service/container account is NOT user access — LOCATE user.txt FIRST.")
     print("   First move (one shot, one artefact):")
     print("      bash scripts/postfoothold.sh --emit   # then run on target, save to loot/")
     print("   Then work them cheapest-first:  bash scripts/hypotheses.sh list --rank --phase privesc")
+    print("   Inside a container (/.dockerenv, service-acct)? → playbooks/archetypes/container-foothold.md")
 
 if V == "confirmed" and d.get("privesc_seeded") and _is_foothold:
     pass  # chain already satisfied by seeded links

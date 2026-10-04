@@ -256,6 +256,94 @@ two hours. Never again. The second you have code exec:
 The bar is unchanged: **both flags, full exploration, like a real
 pentester** — just without burning hours and money on the wrong wall.
 
+**The two objectives, always explicit:**
+- **user.txt = USER access** — a shell/read as a *real* login user. A
+  foothold as a service account or inside a container is **NOT** user
+  access; the user flag lives elsewhere. Locate `user.txt` FIRST, before
+  chasing root.
+- **root.txt = ROOT access** — full control of the host (uid 0), not a
+  root process inside a container you have not yet escaped.
+
+Two distinct milestones. `postfoothold.sh` hunts both flags + maps real
+users in its one-shot sweep; the foothold reflex seeds "locate user.txt"
+as privesc hypothesis #1.
+
+**The MOMENT you read a flag value, persist it — before anything else:**
+```bash
+bash scripts/flag.sh user <value>    # or: flag.sh root <value>
+```
+Do NOT keep it only in your context/report and write `loot/` at the end.
+Capturing at read-time (a) survives a box re-spawn / session death — the
+Nimbus run got user, the box died, and the flag only lived in context — and
+(b) timestamps each flag separately so time-to-user and time-to-root are real.
+Writing both flags together at report time loses both.
+
+### R17. Anti-spin — never run the same dead move twice
+
+If a command returns the same output (especially **empty** or **404**) a
+second time, that vector is answered — **stop re-running it**. Re-listing
+the same empty directory, re-fuzzing a 404-ing route, or re-scanning the
+same ports is not progress; it is the loop spinning. The bedside.htb run
+burned ~4h partly re-listing empty `/datastore` dirs every ~5 min and
+blind-fuzzing a 404-ing root API.
+
+Reflexes:
+- Empty / 404 / identical result? Record it as a **falsified** hypothesis
+  and pull the next one — do not repeat it.
+- Before blind-fuzzing an internal service, **read its source / binary /
+  config** or derive routes from app context. Generic wordlists on an
+  app-specific API (Go Fiber, custom) are near-zero EV.
+- `bash scripts/loop-guard.sh "<signature>"` self-checks for repetition
+  and warns; 3 repeats of anything = pivot NOW (see R5).
+
+### R18. Context is NOT storage — compact or bleed money
+
+The Nimbus hard box billed **283 MILLION cacheRead tokens over 1004 requests
+(~$11.48)** — almost all of it re-reading its own bloated context every turn.
+A model dragging 280k tokens per turn is both **expensive and unfocused**.
+
+- **Findings go to disk AS YOU GO** — `target-model.md`, `surface.md`, `loot/`,
+  `creds/`. Your context is a scratchpad, not the record. (This also survives a
+  box re-spawn — Nimbus died after hours; the on-disk model is why we can resume.)
+- **Exploit scripts/payloads → `reports/<target>/exploits/` — NEVER the nest
+  root.** Write them straight there (`reports/<target>/exploits/x.py`), never as
+  bare filenames in the cwd. A bare `> x.py` lands in the workspace root, clutters
+  every future session's context (R14), and orphans the script from the target if
+  the box dies. The Nimbus run dumped 9 loose scripts in root doing exactly this.
+  `compact.sh` flags loose root files and prints the move command.
+- **Never dump huge output into context.** Scans/dumps write to a file; read back
+  only the lines you need (`grep`/`head`), never `cat` a multi-KB file to "look".
+  Batch with `scripts/shell-batch.sh --wrap --cap N` to bound what returns.
+- **Re-anchor every ~15-20 steps:** `bash scripts/compact.sh` prints a tight
+  STATE DIGEST from disk — then rely on THAT and let stale scrollback fall away.
+- Target: keep working context lean (tens of k), not pinned near the window.
+  On an easy/medium box this is the difference between ~$3 and ~$12.
+
+### R19. Swarm the breadth — fan out, keep each worker SMALL
+
+When the surface is wide (many services/endpoints, an emulator with dozens of
+APIs, several independent vectors) or you have **≥3 independent parallel-safe
+open hypotheses**, do not grind them serially in one bloated context — fan out:
+
+```bash
+bash scripts/swarm.sh plan --workers 3     # parallel-safe set vs exclusive set
+bash scripts/swarm.sh worker-brief <id>    # spawn one subagent per parallel-safe H
+```
+
+The coordinator (you) owns the bank + mutations; workers each test ONE front in
+a SMALL fresh context and report back (they never edit the bank). Exclusive
+actions (upload/brute/listener) serialize via `scripts/lease.sh`. This is the
+antidote to R18 bloat on wide boxes: N small contexts beat one 280k monolith.
+Full protocol: `playbooks/swarm-coordinator.md`.
+
+### R20. Check for a matching exploit skill BEFORE hand-rolling
+
+Once you fingerprint a product/tech, check whether an installed skill already
+covers it (the archetypes list "Matching skills"; e.g. Next.js RSC, Langflow,
+pdfminer pickle, CUPS, OliveTin, AWS-emulator SSRF). A skill encodes the exact
+request shapes and traps — using it collapses the trial-and-error that burns
+requests. Read the archetype for your surface in `playbooks/archetypes/` first.
+
 ---
 
 ## 4. Quick command reference (commit these to muscle memory)
@@ -302,6 +390,18 @@ bash scripts/postfoothold.sh --run 'ssh u@t sh'   # or auto-capture via a runner
 # Never pay one request per command — batch, or make the shell persistent:
 printf '%s\n' 'id' 'sudo -n -l' 'ls -la /opt' | bash scripts/shell-batch.sh --wrap
 bash scripts/shell-batch.sh --persist        # FIFO-backed persistent shell
+
+# CONTEXT HYGIENE (R18) — the #1 cost lever on long/hard boxes. Re-anchor on
+# disk and drop stale scrollback instead of re-reading a 280k-token context:
+bash scripts/compact.sh                      # tight STATE DIGEST from disk
+
+# WIDE SURFACE? Swarm it (R19) — fan out parallel-safe fronts, small contexts:
+bash scripts/swarm.sh plan --workers 3
+bash scripts/swarm.sh worker-brief <H-id>    # spawn one subagent per front
+bash scripts/lease.sh acquire upload-queue   # serialize box-mutating actions
+
+# SAW A FLAG VALUE? Persist it AT THAT INSTANT (survives box death; real timing):
+bash scripts/flag.sh user <value>            # or: flag.sh root <value>
 
 # Done? Deterministic check:
 bash scripts/stop-gate.sh <target> --why

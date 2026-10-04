@@ -54,8 +54,8 @@ resolve_slug_for_box() {
 
 cmd_start() {
   local box="${1:-}"; shift 2>/dev/null || true
-  [[ -n "$box" ]] || die "Usage: bench.sh start <box> --ip <ip> --model <name> [--hostname <h>] [--difficulty <d>] [--os <o>]"
-  local ip="" model="" hostname="" difficulty="" os=""
+  [[ -n "$box" ]] || die "Usage: bench.sh start <box> --ip <ip> --model <name> --session <id> [--hostname <h>] [--difficulty <d>] [--os <o>] [--resume]  (blind-from-scratch is the default; --resume keeps prior state but marks the row inadmissible)"
+  local ip="" model="" hostname="" difficulty="" os="" session="" blind="yes"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --ip) ip="$2"; shift 2;;
@@ -63,6 +63,9 @@ cmd_start() {
       --hostname) hostname="$2"; shift 2;;
       --difficulty) difficulty="$2"; shift 2;;
       --os) os="$2"; shift 2;;
+      --session) session="$2"; shift 2;;
+      --blind) blind="yes"; shift;;
+      --resume) blind="no"; shift;;
       *) die "Unknown flag: $1";;
     esac
   done
@@ -82,6 +85,28 @@ cmd_start() {
 
   local slug; slug="$(slugify "$ip")"
   local dir="$WS/reports/$slug"
+
+  # ── Admissibility: a benchmark retry MUST be blind (from scratch). ──
+  # If prior reasoning/loot exists, archive it so pentest.sh builds fresh —
+  # otherwise a second attempt inherits surface/target-model/hypotheses and
+  # even a stale loot/user.txt that would falsely score as a solve. --resume
+  # opts out but marks the row inadmissible.
+  if [[ "$blind" == "yes" && -d "$dir" ]] && \
+     { [[ -f "$dir/hypotheses.json" ]] || [[ -s "$dir/surface.md" ]] || compgen -G "$dir/loot/*" >/dev/null 2>&1; }; then
+    local arch="$WS/reports/_archive/${slug}-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$WS/reports/_archive"
+    mv "$dir" "$arch"
+    echo "🧹 BLIND: archived prior engagement → reports/_archive/$(basename "$arch") (starting from scratch)."
+  elif [[ "$blind" == "no" ]]; then
+    echo "⚠  --resume: NOT blind. This row is INADMISSIBLE for cross-model comparison."
+  fi
+  [[ -z "$session" ]] && echo "⚠  No --session: per-box cost won't be cleanly separable (cost.py needs session_id). Pass --session <openclaw-session-id>."
+
+  # Version integrity for the comparison set.
+  # Python literals (this heredoc is Python source; json.dump emits true/false).
+  local nest_dirty blind_json
+  [[ -n "$(git -C "$WS" status --porcelain 2>/dev/null)" ]] && nest_dirty=True || nest_dirty=False
+  [[ "$blind" == "yes" ]] && blind_json=True || blind_json=False
 
   # Wire /etc/hosts if hostname given and not present.
   if [[ -n "$hostname" ]]; then
@@ -107,6 +132,9 @@ json.dump({
     "difficulty": "$difficulty" or None, "os": "$os" or None,
     "archetype": "$reg_arch" or None,
     "nest_commit": "$(nest_commit)",
+    "nest_dirty": $nest_dirty,
+    "blind": $blind_json,
+    "session_id": "$session" or None,
     "started_at": int(time.time()), "ended_at": None,
 }, open(p, "w"), indent=2)
 print("[+] Benchmark metadata:", p)
@@ -235,10 +263,47 @@ cmd_status() {
   fi
 }
 
+cmd_cost() {
+  # Real billed-token cost from the OpenClaw transcript (input+cacheRead+
+  # cacheWrite+output priced via benchmark/prices.json). This is the source of
+  # truth OpenClaw CAN see — unlike session_status (peak context only). The
+  # cacheRead term dominates long agentic runs, so prices.json's "cached" rate
+  # matters most. Cross-check one run against the provider invoice to validate.
+  local box="" slug="" session="" model=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --slug) slug="$2"; shift 2;;
+      --session) session="$2"; shift 2;;
+      --model) model="$2"; shift 2;;
+      *) box="$1"; shift;;
+    esac
+  done
+  local args=()
+  if [[ -n "$session" ]]; then
+    args=(--session "$session")
+  else
+    if [[ -z "$slug" && -n "$box" ]]; then slug="$(resolve_slug_for_box "$box")"; fi
+    if [[ -n "$slug" ]]; then
+      local bf="$WS/reports/$slug/.bench.json" sid=""
+      [[ -f "$bf" ]] && sid=$(python3 -c "import json;print(json.load(open('$bf')).get('session_id') or '')" 2>/dev/null)
+      if [[ -n "$sid" ]]; then
+        args=(--session "$sid")
+      else
+        echo "ℹ️  No session_id recorded for '$slug' (older runs predate --session)."
+        echo "   Listing ALL sessions — pick the one for this box and re-run with --session:"
+        echo ""
+      fi
+    fi
+  fi
+  [[ -n "$model" ]] && args+=(--model "$model")
+  python3 "$BENCH/cost.py" "${args[@]}"
+}
+
 ACTION="${1:-}"; shift 2>/dev/null || true
 case "$ACTION" in
   start)  cmd_start "$@";;
   score|finish)  cmd_score "$@";;
+  cost)   cmd_cost "$@";;
   report) cmd_report "$@";;
   list)   cmd_list "$@";;
   status) cmd_status "$@";;
@@ -250,12 +315,15 @@ bench.sh — reproducible Nest benchmark harness
   bash benchmark/bench.sh finish <box> [--cost USD] [--requests N] [--rate \$/1M] [--tokens-billed N]
                                        [--context-in N] [--context-out N] [--notes "..."]
   bash benchmark/bench.sh score  [<box> | --slug <slug>]      # same as finish (alias)
+  bash benchmark/bench.sh cost   [--session <id> | <box> | --slug <slug>] [--model M]
+                                       # real billed-token cost from the transcript
   bash benchmark/bench.sh report [--md | --csv]
   bash benchmark/bench.sh list
   bash benchmark/bench.sh status
 
 Typical run:
-  bash benchmark/bench.sh start blackfield --ip 10.10.10.192 --model "qwen2.5-72b" --hostname blackfield.htb
+  bash benchmark/bench.sh start blackfield --ip 10.10.10.192 --model "qwen2.5-72b" --hostname blackfield.htb --session <openclaw-session-id>
+  # (--session records the session_id so 'bench.sh cost' maps box->cost exactly)
   # ... drive the loop until stop-gate passes ...
   # read cost + request count from the provider dashboard (ollama.com/settings), then:
   bash benchmark/bench.sh finish blackfield --cost 4.20 --requests 129 --rate 1.40 --notes "AS-REP -> SeBackup -> NTDS"

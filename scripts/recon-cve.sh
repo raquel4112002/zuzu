@@ -66,13 +66,22 @@ echo ""
 NVD_KEY=$(echo "$PRODUCT_VERSION" | tr '/ ' '__' | tr -cd 'a-zA-Z0-9._-')
 NVD_FILE="$CACHE/nvd-$NVD_KEY.json"
 
+# NVD keywordSearch does AND across tokens, and version strings almost never
+# appear in CVE descriptions -> sending the version returns NOTHING exactly
+# when you have a precise version (the common, highest-EV case). Query by
+# PRODUCT NAME only (strip trailing version-like tokens) and sort newest-first;
+# the reader matches the version from the CVE text / our own knowledge.
+PRODUCT_ONLY=$(echo "$PRODUCT_VERSION" | sed -E 's/([[:space:]]+[vV]?[0-9][0-9A-Za-z._:+~-]*)+[[:space:]]*$//' | sed 's/[[:space:]]*$//')
+[[ -z "$PRODUCT_ONLY" ]] && PRODUCT_ONLY="$PRODUCT_VERSION"
+
 # Cache for 1h
 if [[ ! -f "$NVD_FILE" ]] || [[ $(find "$NVD_FILE" -mmin +60 2>/dev/null) ]]; then
-  KEYWORD=$(echo "$PRODUCT_VERSION" | sed 's/ /%20/g')
+  KEYWORD=$(echo "$PRODUCT_ONLY" | sed 's/ /%20/g')
   curl -s --max-time 12 \
-    "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=$KEYWORD&resultsPerPage=15" \
+    "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=$KEYWORD&resultsPerPage=100" \
     -o "$NVD_FILE" 2>/dev/null || true
 fi
+[[ "$PRODUCT_ONLY" != "$PRODUCT_VERSION" ]] && echo "_(queried product \"$PRODUCT_ONLY\" — newest first; confirm the version applies)_" && echo ""
 
 if [[ -s "$NVD_FILE" ]]; then
   python3 - "$NVD_FILE" <<'PY' 2>/dev/null || echo "_NVD parse failed._"
@@ -86,6 +95,8 @@ items = data.get('vulnerabilities', [])
 if not items:
     print("_No NVD matches._")
     sys.exit(0)
+# newest-first: recent boxes almost always pin a recently-CVE'd version
+items.sort(key=lambda v: (v.get('cve', {}).get('published', '') or ''), reverse=True)
 print("| CVE | CVSS | Published | Summary |")
 print("|---|---|---|---|")
 for v in items[:15]:
@@ -119,7 +130,10 @@ GH_URL="https://api.github.com/search/repositories?q=$GH_QUERY+poc+OR+exploit&so
 GH_FILE="$CACHE/gh-$NVD_KEY.json"
 
 if [[ ! -f "$GH_FILE" ]] || [[ $(find "$GH_FILE" -mmin +60 2>/dev/null) ]]; then
-  curl -s --max-time 10 -H "Accept: application/vnd.github+json" \
+  # Authenticated calls lift the brutal 10 req/min unauth limit that makes
+  # parallel recon-fast CVE lanes self-rate-limit. Set GITHUB_TOKEN to use it.
+  GH_AUTH=(); [[ -n "${GITHUB_TOKEN:-}" ]] && GH_AUTH=(-H "Authorization: Bearer $GITHUB_TOKEN")
+  curl -s --max-time 10 -H "Accept: application/vnd.github+json" "${GH_AUTH[@]}" \
     "$GH_URL" -o "$GH_FILE" 2>/dev/null || true
 fi
 

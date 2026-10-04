@@ -205,6 +205,25 @@ crown jewel (root, DA, the flag, data exfil).
 
 ---
 
+## N. Framework-internal trust (the app trusts its own plumbing)
+
+The app implicitly trusts a channel its framework uses internally — a
+serialized action payload, an internal header, a module graph, a
+"middleware-is-authz" assumption. These channels were never meant to face the
+user, so they skip the validation the visible routes get. The surface is
+invisible to dirbusting: it lives in the protocol, not the sitemap.
+
+| Pattern | Trigger | Sample falsifier |
+|---|---|---|
+| **RSC Server-Action payload trust** | Next.js/React app; `Next-Action` header; flight data (`self.__next_f`) | POST any path `multipart/form-data` with a `__proto__`/`constructor` pollution flight payload (CVE-2025-55182); expect 303 w/ output in `Location` |
+| **Internal subrequest header = authz bypass** | auth enforced in `middleware.ts` only | `curl -H 'x-middleware-subrequest: middleware' http://t/admin` (CVE-2025-29927) |
+| **`__NEXT_PRIVATE_*` / build-time trust leaking to runtime** | Next prerender/build vars echoed in flight or env | grep served chunks + `/_next/static/<buildId>/_buildManifest.js` for buildId, routes, action ids, baked secrets |
+| **Dev-server module graph exposed in prod** | Vite `/@vite/client`, `/@fs/`, `?import`/`?raw` present | `curl 'http://t/@fs/etc/passwd'`, `curl 'http://t/src/app.js?import'` (CVE-2025-30208) |
+| **"It ran behind our form, so it's safe"** | Server Actions / RPC ids callable without the UI | replay the `$ACTION_*` / RPC id directly; state-mutating action fires unauthenticated |
+| **Framework cache/serializer trusted on re-read** | framework pickles/serializes its own cache (sessions, CMap, job args) | poison the cache entry, trigger the re-read path → deserialization RCE |
+
+---
+
 ## How this catalog stays useful
 
 When you discover a new universal pattern, add it here. Keep entries
