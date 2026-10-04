@@ -344,6 +344,28 @@ pdfminer pickle, CUPS, OliveTin, AWS-emulator SSRF). A skill encodes the exact
 request shapes and traps — using it collapses the trial-and-error that burns
 requests. Read the archetype for your surface in `playbooks/archetypes/` first.
 
+### R21. Learn from EVERY box — capture the transferable prior, not a walkthrough
+
+Every engagement must leave one `learnings/<box>.md` — and it is a **prior, not
+a recipe**. We do NOT want "how to do box X" (useless on the next, different box).
+We want the knowledge it gave:
+- **Signal → vuln class:** "when you see `<fingerprint/version/behaviour>` →
+  pursue `<vuln class / where to go>`."
+- **What worked:** the insight/pivot that cracked it, phrased to generalize.
+- **Dead-ends:** what looked promising but wasted time (so the next run skips it).
+
+```bash
+bash scripts/learn.sh save <box> --diff <d> --tags "tech,port,archetype" \
+   --signal "X -> pursue Y" --worked "the insight" --deadends "what wasted time" --refs "CVE/skill"
+```
+This is **mandatory** — `stop-gate.sh` will not pass a solved box without it.
+
+And at the START of recon, pull the priors you already earned:
+```bash
+bash scripts/learn.sh lookup <tech-or-port>    # e.g. learn.sh lookup nextjs upload
+```
+That is the feedback loop: each box teaches a prior; the next recon consults it.
+
 ---
 
 ## 4. Quick command reference (commit these to muscle memory)
@@ -356,6 +378,7 @@ bash scripts/pentest.sh <target> [hostname]
 # Reads reports/<slug>/recon-summary.md when done. Gap? deep-recon --force.
 bash scripts/recon-fast.sh [<target>] [hostname]
 bash scripts/deep-recon.sh --force        # exhaustive serial fallback
+bash scripts/learn.sh lookup <tech/port>  # pull priors earned on past boxes (R21)
 
 # Phase timing — stamp transitions so the benchmark shows where time goes.
 bash scripts/phase.sh recon|foothold|privesc|root|lateral
@@ -403,7 +426,10 @@ bash scripts/lease.sh acquire upload-queue   # serialize box-mutating actions
 # SAW A FLAG VALUE? Persist it AT THAT INSTANT (survives box death; real timing):
 bash scripts/flag.sh user <value>            # or: flag.sh root <value>
 
-# Done? Deterministic check:
+# Before done — capture the TRANSFERABLE prior this box taught (R21, mandatory):
+bash scripts/learn.sh save <box> --signal "X->pursue Y" --worked "insight" --deadends "..." --tags "tech"
+
+# Done? Deterministic check (won't pass a solved box without a learning):
 bash scripts/stop-gate.sh <target> --why
 
 # Hit a human-only gate after ≥3 falsified bypasses? Hand off:

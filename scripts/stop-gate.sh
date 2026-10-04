@@ -51,12 +51,35 @@ reason() {
   fi
 }
 
+# Transferable-learning gate (R21): every solved box must leave a prior.
+have_learning() {
+  local boxname lk
+  boxname=$(python3 -c "import json;print(json.load(open('$DIR/.bench.json')).get('box') or '')" 2>/dev/null)
+  for n in "$SLUG" "$boxname"; do
+    [[ -n "$n" ]] || continue
+    lk=$(echo "$n" | tr '[:upper:] /' '[:lower:]--' | tr -cd 'a-z0-9._-')
+    [[ -f "$WS/learnings/$lk.md" ]] && return 0
+  done
+  return 1
+}
+learning_block() {
+  reason "❌ Flags captured but NO transferable learning recorded (R21). Capture the
+   PRIOR this box taught (signal→class, the insight, the dead-ends) before done:
+     bash scripts/learn.sh save <box> --diff <d> --tags \"tech,...\" \\
+        --signal \"when you see X -> pursue Y\" --worked \"the insight (generalized)\" \\
+        --deadends \"what wasted time\" --refs \"CVE/technique\""
+}
+
 # A) HTB-style flags
 USER_F="$DIR/loot/user.txt"
 ROOT_F="$DIR/loot/root.txt"
 if [[ -s "$USER_F" && -s "$ROOT_F" ]]; then
-  reason "✅ STOP OK — user.txt and root.txt both present and non-empty."
-  exit 0
+  if have_learning; then
+    reason "✅ STOP OK — user.txt + root.txt present and a transferable learning is recorded."
+    exit 0
+  else
+    learning_block; exit 1
+  fi
 fi
 
 # B) Generic flag file + ticked proof box in ENGAGEMENT.md

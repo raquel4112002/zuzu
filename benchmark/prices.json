@@ -63,6 +63,11 @@
       "input": 0.015,
       "cached": 0.015,
       "output": 0.6
+    },
+    "gpt-oss:120b": {
+      "input": 0.15,
+      "cached": 0.014,
+      "output": 0.6
     }
   }
 }
