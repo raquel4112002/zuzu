@@ -68,6 +68,11 @@
       "input": 0.15,
       "cached": 0.014,
       "output": 0.6
+    },
+    "mistral-large-3:675b-cloud": {
+      "input": 0.5,
+      "cached": 0.5,
+      "output": 1.5
     }
   }
 }
