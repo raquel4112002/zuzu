@@ -9,6 +9,7 @@
 - [mcp,ssrf,rce,jupyter,lateral-movement,egress-filtered,credentials,webapp] Static 'services overview' page advertising an internal dev tool on a NON-STANDARD HIGH PORT (6274) -> go straight at that port for an unauthenticated dev-tool RCE (inspector/proxy/debug consoles bind 0.0.0.0 by default) — `devhub.md`
 - [nfs,creds-leak,webmail,olivetin,command-injection,bcrypt] anonymous NFS export (showmount -e) -> onboarding/HR docs that leak first creds; an OliveTin dashboard -> StartAction shell-string argument injection as the service user — `enigma.md`
 - [active-directory,windows,kerberos,rodc,ldap,smb,bloodhound] DC ports (88/389/445/464/636/3268/5985) + a Read-Only DC (RODC) in a second segment -> AD ACL/delegation chain, and the RODC is the DA path — `garfield.md`
+- [spring,heapdump,xxe,kafka,clickhouse,privesc,systemd,timer] Java/Spring app exposes /actuator/heapdump -> carve the loaded config class's constant pool for hardcoded creds; service creds in a broker's server.properties are reused for OS accounts -> SSH; a root systemd timer executing a script that lives in a directory writable by a lower-privileged service = root RCE — `htb-airport.md`
 - [rdp,lxd-container,wifi,craft-cms,cve-2026-28695,cups,cve-2026-34990] RDP-only foothold in an LXD container + an open WiFi iface (mac80211_hwsim) -> sniff cleartext creds in monitor mode; Craft CMS <=5.9.8 -> CVE-2026-28695 Yii2 behavior-injection blind RCE; CUPS <=2.4.16 -> CVE-2026-34990 local-token LPE — `layover.md`
 - [wordpress,xss,stored-xss,crypto,aes-gcm,ocr,php,rce,privesc,selenium-bot,chromedriver] Browser-side AI/crypto apps leak their keys: grep theme JS for hardcoded symmetric keys before anything else — `makesense.md`
 - [spa,encrypted-js,aes-gcm,client-side,nginx,crypto] a 'Loading…' SPA whose index.html fetches assets/app.enc and AES-GCM-decrypts+evals it with an INLINE key in the <script> -> the real app logic/endpoints are in app.enc; decrypt it client-side to recover the attack surface — `management.md`
@@ -19,3 +20,4 @@
 - [active-directory,windows,kerberos,asrep,coercer,ntlm-relay,glm-weak] AD/DC box (asrep-roastable users, Coercer/PetitPotam surface) -> AS-REP roast + coercion->relay chain; but glm-5.3-flash struggles on AD/Kerberos (strong on Linux web, weak here) — `scaffold.md`
 - [untagged] ? — `security.md`
 - [windows,kiosk,rdp,gui-escape,mysql,udf,privesc,device-management] kiosk/locked-down Windows with a GUI-only app, DeviceHub-style device management portal, MySQL as a service — `touch.md`
+- [untagged] ? — `trustfall.md`
