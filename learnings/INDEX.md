@@ -1,7 +1,7 @@
 # Learnings index — transferable priors (grep me during recon)
 # format: tags | signal→class | file
 
-- [untagged] ? — `2million.md`
+- [untagged] ? — ``
 - [pdfminer,upload-pipeline,container,nextjs,python,deserialization] X-Powered-By: pdfminer.six on an upload endpoint -> pickle-deserialization RCE in the converter worker (CVE-2025-64512 class); any upload->worker pipeline -> look for the deserializer gadget — `bedside.md`
 - [linux,web,blockchain,ssrf,rce,privesc,backup,docker,python] root cron tars a USER-WRITABLE tree that a root daemon later restores from a verified archive -> plant a SUID/uid=0-header payload INSIDE that tree; root's own genuine archive carries it home — `blocksynergy.md`
 - [ssrf,marimo,packagekit,cve-2026-41651,privesc] wildcard TLS cert SPA with a fetch-and-preview SSRF + a loopback notebook service -> enumerate the nginx /status endpoint and look for an internal-notes vhost that proxies the loopback service — `cohort.md`

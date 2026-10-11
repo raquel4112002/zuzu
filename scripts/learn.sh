@@ -31,7 +31,7 @@ rebuild_index() {
     for f in "$LDIR"/*.md; do
       [[ "$(basename "$f")" == "INDEX.md" ]] && continue
       [[ -f "$f" ]] || continue
-      local tags sig
+      local tags sig f
       tags=$(grep -m1 -iE '^tags:' "$f" 2>/dev/null | sed 's/^[Tt]ags:[[:space:]]*//')
       sig=$(awk '/## Signal/{f=1;next} /^## /{f=0} f && NF{print;exit}' "$f" 2>/dev/null | sed 's/^- *//')
       printf -- "- [%s] %s — \`%s\`\n" "${tags:-untagged}" "${sig:-?}" "$(basename "$f")"
@@ -44,6 +44,24 @@ case "$ACTION" in
   save)
     BOX="${1:-}"; shift 2>/dev/null || true
     [[ -n "$BOX" ]] || { echo "Usage: learn.sh save <box> --tags .. --signal .. --worked .. [--deadends ..] [--refs ..] [--diff ..]"; exit 2; }
+    # A learning must NEVER be named after a target IP: it leaks the IP (R12) and
+    # duplicates the real-name learning. If an IP is passed, resolve the box name
+    # from reports/<ip>/.bench.json; if that fails, refuse rather than create one.
+    is_ipish() { [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}([:_-].*)?$ ]]; }
+    if is_ipish "$BOX"; then
+      ip="${BOX%%[:_-]*}"; resolved=""; bench="$WS/reports/$ip/.bench.json"
+      [[ -f "$bench" ]] && resolved=$(python3 -c "import json,sys;print((json.load(open(sys.argv[1])).get('box') or '').strip())" "$bench" 2>/dev/null)
+      if [[ -n "$resolved" ]] && ! is_ipish "$resolved"; then
+        echo "ℹ️  '$BOX' is an IP — using box name '$resolved' from reports/$ip/.bench.json"
+        BOX="$resolved"
+      else
+        echo "❌ Refusing to name a learning after an IP ('$BOX')."
+        echo "   Learnings are IP-free reusable priors (R12). Pass the real box name:"
+        echo "     bash scripts/learn.sh save <boxname> --signal .. --worked .."
+        echo "   (or set \"box\" in reports/$ip/.bench.json first, then re-run.)"
+        exit 2
+      fi
+    fi
     TAGS=""; SIGNAL=""; WORKED=""; DEADENDS=""; REFS=""; DIFF=""
     while [[ $# -gt 0 ]]; do case "$1" in
       --tags) TAGS="$2"; shift 2;; --signal) SIGNAL="$2"; shift 2;;
@@ -51,7 +69,9 @@ case "$ACTION" in
       --refs) REFS="$2"; shift 2;; --diff) DIFF="$2"; shift 2;;
       *) shift;; esac; done
     [[ -n "$SIGNAL" && -n "$WORKED" ]] || { echo "❌ --signal and --worked are required (the transferable core)."; exit 2; }
-    f="$LDIR/$(slugify "$BOX").md"
+    slug="$(slugify "$BOX")"
+    is_ipish "$slug" && { echo "❌ Refusing: resolved slug '$slug' is IP-shaped. Pass a real box name."; exit 2; }
+    f="$LDIR/$slug.md"
     {
       echo "# Learning: $BOX${DIFF:+ ($DIFF)} — $(date +%Y-%m-%d)"
       echo "tags: $TAGS"
@@ -68,8 +88,9 @@ case "$ACTION" in
       echo "## CVE / technique refs"
       echo "- ${REFS:-—}"
     } > "$f"
+    saved_name="$(basename "$f")"
     rebuild_index
-    echo "🧠 learning saved -> learnings/$(basename "$f")  (indexed)"
+    echo "🧠 learning saved -> learnings/$saved_name  (indexed)"
     ;;
   lookup)
     [[ $# -gt 0 ]] || { echo "Usage: learn.sh lookup <keyword...>"; exit 2; }
